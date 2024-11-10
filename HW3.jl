@@ -1006,7 +1006,7 @@ Release date: Thursday, Oct 10, 2024 (version 3)
 
 **Due date: Wednesday, Oct 23, 2024 at 11:59pm EST**
 
-Submission by: Jazzy Doe (jazz@mit.edu)
+Submission by: **$(student.name)** (**$(student.kerberos_id)**)
 """
 
 # ╔═╡ 332586f5-f1c5-461e-bfeb-ad3c72e77162
@@ -3413,7 +3413,7 @@ version = "17.4.0+2"
 """
 
 # ╔═╡ Cell order:
-# ╟─d4f96362-7945-4a18-99dd-52a94f6cc65b
+# ╠═d4f96362-7945-4a18-99dd-52a94f6cc65b
 # ╠═d5cd95f9-6728-47e2-bba4-00298c78d50c
 # ╠═0d4205ec-fec1-4ef4-af48-7dae51ab31ee
 # ╠═1b452080-14eb-41f7-969b-e2727af54fa3
