@@ -180,6 +180,41 @@ let
 	)
 end
 
+# ╔═╡ 245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
+# with mask
+let
+	dim, attn_dim = 3, n_tokens
+	head = AttentionHead{Float64}(dim, attn_dim)
+	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
+
+	p1 = heatmap(X, title="Input", aspect_ratio=1, colorbar=false)
+
+	Q = randn(attn_dim, dim)
+	K = randn(attn_dim, dim)
+	V = randn(dim, dim)
+	p2 = heatmap(Q, title="Q", aspect_ratio=1, colorbar=false)
+	p3 = heatmap(K, title="K", aspect_ratio=1, colorbar=false)
+	p4 = heatmap(V, title="V", aspect_ratio=1, colorbar=false)
+	p5 = heatmap(X * transpose(Q), title="XQ", aspect_ratio=1, colorbar=false)
+	p6 = heatmap(X * transpose(K), title="XK", aspect_ratio=1, colorbar=false)
+	p7 = heatmap(X * transpose(V), title="XV", aspect_ratio=1, colorbar=false)
+	scores = Q * transpose(K) / sqrt(head.n_hidden)
+	p8 = heatmap(scores, title="attn", aspect_ratio=1, colorbar=false)
+
+	mask = UpperTriangular(ones(n_tokens, n_tokens))
+	p85 = heatmap(mask, title="mask", aspect_ratio=1, colorbar=false)
+	scores_mask = scores .* mask .+ (1 .- mask) 
+	p9 = heatmap(scores_mask, title="masked attn", aspect_ratio=1, colorbar=false)
+
+	alpha = softmax(scores_mask, dims=ndims(scores_mask)) 
+	p10 = heatmap(alpha, title="alpha", aspect_ratio=1, colorbar=false)
+
+	attn_output = alpha * (X * transpose(V))
+	p11 = heatmap(attn_output, title="output", aspect_ratio=1, colorbar=false)
+
+	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p85,p9,p10,p11]..., layout=(3,4))
+end
+
 # ╔═╡ c12ffac7-7533-42fa-a721-30938396e898
 ### 3. Feed-Forward Network (FFN)
 struct FeedForwardNetwork{T<:Real}
@@ -349,9 +384,9 @@ Remember Transformers operate on tokens i.e. transformations of tokens. What we 
 """
 
 # ╔═╡ a2ff04a3-4118-47b8-b768-fc2a4986167b
-### 5. PatchEmbed struct 
+### 5. PatchEmbedLinear struct 
 begin
-	struct PatchEmbed{T<:Real}
+	struct PatchEmbedLinear{T<:Real}
 	    img_size::Int
 	    patch_size::Int
 	    nin::Int
@@ -359,7 +394,7 @@ begin
 	    num_patches::Int
 	    W::Matrix{T} # Linear projection weights
 	
-	    function PatchEmbed{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
+	    function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
 	        @assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
 	        
 	        num_patches = (img_size ÷ patch_size)^2
@@ -369,6 +404,84 @@ begin
 	end
 end
 
+
+# ╔═╡ 33d476fa-4185-462d-94d3-b7011bb52d36
+function conv2d(input::AbstractArray, kernel::AbstractArray, stride::Int)
+    # Input shape: (Height, Width, Channels)
+    # Kernel shape: (KernelHeight, KernelWidth, Channels, OutputChannels)
+    # Stride is an integer value
+
+    h_in, w_in, c_in = size(input)
+    k_h, k_w, _, c_out = size(kernel)
+
+    # Calculate the output dimensions based on input size and stride
+    h_out = floor(Int, (h_in - k_h) / stride) + 1
+    w_out = floor(Int, (w_in - k_w) / stride) + 1
+
+    # Initialize the output array
+    output = zeros(Float64, h_out, w_out, c_out)
+
+    for i in 1:h_out
+        for j in 1:w_out
+            for k in 1:c_out
+                # Apply the convolution to the region of interest
+                for di in 1:k_h
+                    for dj in 1:k_w
+                        for d in 1:c_in
+                            output[i, j, k] += input[(i-1)*stride + di, (j-1)*stride + dj, d] * kernel[di, dj, d, k]
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return output
+end
+
+
+# ╔═╡ 8b9eb4c6-b9bc-4ee3-bb7e-e61f396a12fd
+function gaussian_kernel(size::Int, sigma::Float64=1.0)
+    @assert isodd(size) "Kernel size must be odd"
+    center = (size - 1) / 2
+    kernel = zeros(Float64, size, size)
+    for i in 1:size
+        for j in 1:size
+            x, y = i - center - 1, j - center - 1
+            kernel[i, j] = exp(- (x^2 + y^2) / (2 * sigma^2))
+        end
+    end
+    return kernel / sum(kernel) # Normalize
+end
+
+# ╔═╡ 853e38ee-6526-46c8-8af1-fcfce02fe4f3
+# PatchEmbedConv struct
+struct PatchEmbedConv
+	    img_size::Int  # The width and height of the image (square image)
+	    patch_size::Int  # The width of each square patch
+	    nin::Int  # The number of input channels
+	    nout::Int  # The number of output channels
+	
+	    function PatchEmbedConv(img_size::Int, patch_size::Int, nin::Int, nout::Int)
+	        return new(img_size, patch_size, nin, nout)
+	    end
+	
+		function (p::PatchEmbedConv)(x::AbstractArray)
+		    # x should have shape (Height, Width, Channels) for a single image
+			x = permutedims(x, (3, 2, 1))
+		    kernel = rand(Float64, p.patch_size, p.patch_size, p.nin, p.nout)  # Random kernel
+		    stride = p.patch_size
+		
+		    # Apply conv2d to extract patches
+		    patches = conv2d(x, kernel, stride)
+		
+		    # Flatten the patches into a (num_patches, nout) form
+		    num_patches = size(patches, 1) * size(patches, 2)
+		    patches_flattened = reshape(patches, num_patches, p.nout)
+		
+		    return patches_flattened
+		end
+	end
 
 # ╔═╡ 9e705315-d646-4373-854d-47a9f9d9076b
 # Load and preprocess the image
@@ -394,36 +507,49 @@ function extract_patches(image, patch_size)
     return patches
 end
 
-# ╔═╡ 507bcd15-012a-4ae4-8fd6-9879c9f88834
-md"""
-TODO: Please put Alex code here.
-"""
-
-# ╔═╡ d1a8c48f-0e41-4815-92e5-80e1e5589e66
-
-begin
-	# Parameters
-	patch_size = 32 # Size of each patch (32x32)
-	
-	# Extract patches
+# ╔═╡ 5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
+function visualize_patches(image_square, patch_size)
+	# Extract patches from image
 	patches = extract_patches(image_square, patch_size)
 	
-	# Visualize patches in a grid
+	# Calculate grid dimensions (assuming a square grid)
 	n_patches = length(patches)
-	grid_dim = Int(sqrt(n_patches)) # Assumes square grid for simplicity
+	grid_dim = Int(sqrt(n_patches))
 	
-	# Prepare the grid of patches
-	heatmap_grid = hcat([
-	    vcat([
-	        patches[row + grid_dim * (col - 1)] for row in 1:grid_dim
-	    ]...) for col in 1:grid_dim
-	]...)
+	# Initialize a list to hold the individual patch plots
+	plot_list = []
 	
-	# Plot the grid
-	heatmap(heatmap_grid, color=:grays, axis=false, colorbar=false, title="Patches of Image")
+	# Generate the grid of patches
+	for idx in 1:n_patches
+		# Create a heatmap for each patch without axis or colorbar
+		p = heatmap(patches[idx], color=:grays, axis=false, colorbar=false)
+		push!(plot_list, p)
+	end
+	
+	# Display the grid of patches
+	plot(plot_list..., layout=(grid_dim, grid_dim), #title="Patches of Image", 
+	margin=5mm,size=(800, 800))
 end
 
-# ╔═╡ 5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
+
+# ╔═╡ 8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
+# Example usage (assuming `image_square` and `extract_patches` are defined):
+visualize_patches(image_square, 64)
+
+# ╔═╡ 5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
+# key / query demonstration
+
+let
+    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
+    imf = download(url)
+    im = load(imf)
+
+    # Resize the image to a square (e.g., 256x256)
+    # img_size = 256
+    # image_square = imresize(image, (img_size, img_size))
+end
+
+# ╔═╡ 1d4a8cd0-fb5f-4e92-a866-e0735a309f54
 
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2409,6 +2535,7 @@ version = "1.4.1+1"
 # ╠═5a498179-0be9-4e70-988f-14575d12a396
 # ╠═74eb85f0-ea48-48cd-b732-4d97f4883c85
 # ╠═c8d32f75-83a3-40d7-b136-4bf5966612a0
+# ╠═245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
 # ╠═c12ffac7-7533-42fa-a721-30938396e898
 # ╠═a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
@@ -2421,10 +2548,14 @@ version = "1.4.1+1"
 # ╠═db19fde5-434c-4030-9a61-0200ddca659f
 # ╠═a2bf29b4-174d-42e1-94b6-39822556349c
 # ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
+# ╠═33d476fa-4185-462d-94d3-b7011bb52d36
+# ╠═8b9eb4c6-b9bc-4ee3-bb7e-e61f396a12fd
+# ╠═853e38ee-6526-46c8-8af1-fcfce02fe4f3
 # ╠═9e705315-d646-4373-854d-47a9f9d9076b
 # ╠═ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
-# ╠═507bcd15-012a-4ae4-8fd6-9879c9f88834
-# ╠═d1a8c48f-0e41-4815-92e5-80e1e5589e66
 # ╠═5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
+# ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
+# ╠═5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
+# ╠═1d4a8cd0-fb5f-4e92-a866-e0735a309f54
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
