@@ -394,9 +394,15 @@ function extract_patches(image, patch_size)
     return patches
 end
 
-# ╔═╡ d0d172cf-e076-448b-8184-99429a4b9b4d
+# ╔═╡ 507bcd15-012a-4ae4-8fd6-9879c9f88834
+md"""
+TODO: Please put Alex code here.
+"""
+
+# ╔═╡ d1a8c48f-0e41-4815-92e5-80e1e5589e66
+
 begin
-    # Parameters
+	# Parameters
 	patch_size = 32 # Size of each patch (32x32)
 	
 	# Extract patches
@@ -406,16 +412,19 @@ begin
 	n_patches = length(patches)
 	grid_dim = Int(sqrt(n_patches)) # Assumes square grid for simplicity
 	
-	# Create a grid plot using `plot(grid=true)`
-	plot(layout=(grid_dim, grid_dim), title="Patches of Image", margin=5mm)
+	# Prepare the grid of patches
+	heatmap_grid = hcat([
+	    vcat([
+	        patches[row + grid_dim * (col - 1)] for row in 1:grid_dim
+	    ]...) for col in 1:grid_dim
+	]...)
 	
-	for idx in 1:n_patches
-	    plot!(heatmap(patches[idx], color=:grays, axis=false, colorbar=false), layout=(grid_dim, grid_dim), subplot=idx)
-	end
-	
-	# Display the grid of patches
-	plot!()
+	# Plot the grid
+	heatmap(heatmap_grid, color=:grays, axis=false, colorbar=false, title="Patches of Image")
 end
+
+# ╔═╡ 5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2414,6 +2423,8 @@ version = "1.4.1+1"
 # ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
 # ╠═9e705315-d646-4373-854d-47a9f9d9076b
 # ╠═ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
-# ╠═d0d172cf-e076-448b-8184-99429a4b9b4d
+# ╠═507bcd15-012a-4ae4-8fd6-9879c9f88834
+# ╠═d1a8c48f-0e41-4815-92e5-80e1e5589e66
+# ╠═5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
