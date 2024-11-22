@@ -558,12 +558,19 @@ let
 	size(patches)
 end
 
+# ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
+
+
+# ╔═╡ c36ad934-e4fe-42c0-bd9b-d11913a8adff
+
+
 # ╔═╡ e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
 struct Embedding{T<:Real}
 	emb::Array{T} # num_embeddings, embedding_dim
 
 	function Embedding{T}(n_patches::Int, dim::Int) where T<:Real 
 		emb = randn(n_patches, dim)
+		return new{T}(emb)
 	end
 end
 
@@ -573,6 +580,7 @@ struct Parameter{T<:Real}
 
 	function Parameter{T}(dim::Int) where T<:Real
 		param = randn(dim)
+		return new{T}(param)
 	end
 end
 
@@ -582,7 +590,10 @@ abstract type Layer end
 # ╔═╡ 307db93b-20f3-4dd1-9dd7-e05780592245
 struct LayerNorm{T<:Real} <: Layer
 	dim::Int
-
+	function LayerNorm{T}(dim::Int) where T<:Real
+		return new{T}(dim)
+	end
+	
 	function(layernorm::LayerNorm{T})(x::Array{T}) where T<:Real 
 		return mapslices(x -> x / norm(x), x, dims=layernorm.dim)
 	end
@@ -590,30 +601,29 @@ end
 
 # ╔═╡ 33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 struct Linear{T<:Real} <: Layer
-	nin::Int
-	nout::Int
 	weight::Array{T}
 	bias::Vector{T}
 
 	function Linear{T}(nin::Int, nout::Int) where T<:Real
 		weight = randn(nin, nout)
 		bias = randn(nout)
+		return new{T}(weight, bias)
 	end
 
 	function(linear::Linear{T})(input::Array{T}) where T<:Real 
-		return Linear.weight * input + linear.bias
+		return linear.weight * input + linear.bias
 	end
 end
 
 # ╔═╡ 867dae62-6570-4131-8713-7867196a8736
 struct Sequential{T<:Real}
-	seq::AbstractVector{Layer}
-	function Sequential{T}(args::Vararg{Layer}) where T<:Real
-		seq = args
+	seq::Vector{Layer}
+	function Sequential{T}(seq::Vector{Layer}) where T<:Real
+		return new{T}(seq)
 	end
 
 	function(sequential::Sequential{T})(x::Array{T}) where T<:Real 
-		for i = 1:len(sequential.seq)
+		for i = 1:length(sequential.seq)
 			x = sequential.seq[i](x)
 		end
 		return x
@@ -639,12 +649,12 @@ struct VisionTransformer{T<:Real}
 	transformer::Transformer{T}
 	head::AbstractArray{T}
 
-	function VisionTransformer{T}(n_channels::Int, nout::Int, img_size::Int, patch_size::Int, dim::Int, attn_dim::Int, mlp_dim::Int, num_head::Int, num_layers::Int) where T<:Real 
-		patch_embed = PatchEmbedLinear(img_size=img_size, patch_size=patch_size, nin=n_channels, nout=dim)
-		pos_E = Embedding((img_size//patch_size)^2, dim)
-		cls_token = Parameter(dim)
-		transformer = Transformer(dim=dim, attn_dim=attn_dim, mlp_dim=mlp_dim, num_heads=num_heads, num_layers=num_layers)
-		head = Sequential(LayerNorm(dim), Linear(dim, nout))
+	function VisionTransformer{T}(n_channels::Int, nout::Int, img_size::Int, patch_size::Int, dim::Int, attn_dim::Int, mlp_dim::Int, num_heads::Int, num_layers::Int) where T<:Real 
+		patch_embed = PatchEmbedLinear{T}(img_size, patch_size, n_channels, dim)
+		pos_E = Embedding{T}((img_size ÷ patch_size)^2, dim)
+		cls_token = Parameter{T}(dim)
+		transformer = Transformer{T}(dim, attn_dim, mlp_dim, num_heads, num_layers)
+		head = Sequential{T}([LayerNorm{T}(dim), Linear{T}(dim, nout)])
 
 	end
 
@@ -658,6 +668,7 @@ struct VisionTransformer{T<:Real}
 		x = vcat(cls_token, embs)
 
 		x, alphas = vt.transformer(x, attn_mask=None, return_attn=return_attn)
+		println(size(x))
 		out = vt.head(x)[:,1]
 		return out, alphas
 	end
@@ -665,7 +676,21 @@ struct VisionTransformer{T<:Real}
 end
 
 # ╔═╡ 2f5badaf-4342-42ec-8240-c5c642c1fa8f
+# Test `Transformer` implementation
+let
+	n_channels = 3
+	nout = 5
+	img_size = 32
+	patch_size = 4
+	dim = 2
+	attn_dim = 1
+	mlp_dim = 3
+	num_heads = 3 
+	num_layers = 6
+	vision_transformer = VisionTransformer{Float64}(n_channels, nout, img_size, patch_size, dim, attn_dim, mlp_dim, num_heads, num_layers)
 
+	out, alphas = vision_transformer(randn(32,32))
+end
 
 # ╔═╡ 89d0ae2a-d00a-4fc2-b345-f13aed739fbc
 
@@ -3251,6 +3276,8 @@ version = "1.4.1+1"
 # ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # ╠═5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
 # ╠═1d4a8cd0-fb5f-4e92-a866-e0735a309f54
+# ╠═8e813069-1265-4469-980d-e1450d6ae173
+# ╠═c36ad934-e4fe-42c0-bd9b-d11913a8adff
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
 # ╠═6e615061-9600-4a98-8c15-c30110dde0ee
 # ╠═e349ae51-d7b1-4ef6-b973-64b13fec23fc
