@@ -35,6 +35,22 @@ There are many, _many_ great blogs on Trasnformers if you want to learn more:
 - https://jalammar.github.io/illustrated-transformer/
 """
 
+# ╔═╡ 970f0e2b-459b-4baa-ae30-886c2bada7b4
+
+md"""
+One thing to keep in mind throughout this notebook is the idea that Transformers operate on *tokens*. Conceptually, they may be though of as _token nets_, which are an abtraction or generalization of the more familiar _neural nets_.
+
+![Token Nets](!token_nets)
+
+Token nets are just like neural nets, alternating between layers that mix nodes in linear combinations (e.g., fully connected linear layers, convolutional layers, etc.) and layers that apply a pointwise nonlinearity to each node (e.g., relus, per-token MLPs). 
+
+---
+
+**NOTE:** We adapt/borrow a lot of material/concepts from
+[Torralba, A., Isola, P., & Freeman, W. T. (2021, December 1). _Foundations of Computer Vision_. MIT Press; The MIT Press, Massachusetts Institute of Technology.](https://mitpress.mit.edu/9780262048972/foundations-of-computer-vision/)
+
+"""
+
 # ╔═╡ 191c435c-4094-4326-9e18-0ee8dc3058ab
 md"""
 Until recently, the best performing models for image classifications had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
@@ -44,7 +60,7 @@ Until recently, the best performing models for image classifications had been co
 
 # ╔═╡ 2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 md"""
-Let’s start by defining key components of a Vision Transformer (ViT) model using Julia structs and parametric types, similar to the structure we implemented in Homework 3. 
+Let’s start by defining key components of a *Transformer* model using Julia structs and parametric types, similar to the structure we implemented in *Homework 3*. 
 
 We will implement the `AttentionHead`, `MultiHeadedAttention`, and `FeedForwardNetwork` modules as Julia structs. This will set up the parts which get combined together in the `Transformer` model.
 """
@@ -108,78 +124,135 @@ let
 	attn_output, alpha = head(X)
 	println("attention output shape: ", size(attn_output))
 	println("attention weight shape: ", size(alpha))
-	heatmap(
-	    alpha,
-	    aspect_ratio=:equal,
-		xlabel="Token Index",
-    	ylabel="Token Index",
-    	title="Attention Matrix",
-	    c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
+	# heatmap(
+	#     alpha,
+	#     aspect_ratio=:equal,
+	# 	xlabel="Token Index",
+ #    	ylabel="Token Index",
+ #    	title="Attention Matrix",
+	#     c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
 		
-	    clabel="Weight",                 # Label for the color bar
-	    colorbar=true,                   # Show the color bar
-	    grid=false,                      # Turn off the grid
-		# framestyle=:none,         # Removes the axis lines
-	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
-	    yticks=1:n_tokens,
-	)
+	#     clabel="Weight",                 # Label for the color bar
+	#     colorbar=true,                   # Show the color bar
+	#     grid=false,                      # Turn off the grid
+	# 	# framestyle=:none,         # Removes the axis lines
+	#     xticks=1:n_tokens,  # Ensures ticks are at each integer index
+	#     yticks=1:n_tokens,
+	# )
 
 end
 
+# ╔═╡ 79d6d0eb-4fec-4ad5-a5b7-9718864b7cfd
+md"""
+"""
+
+# ╔═╡ c3eaadcf-a06d-4469-ba9a-399043e72a9f
+md"""
+To compute the query, key, and value for a set of input tokens, $T_{\mathrm{is}}$, we apply the same linear transformations to each token in the set, resulting in matrices $\mathbf{Q}_{\mathrm{in}}, \mathbf{K}_{\mathrm{in}} \in \mathbb{R}^{N \times m}$ and $V_{\text {in }} \in \mathbb{R}^{N \times d}$, where each row is the query/key/value for each token:
+
+```math
+\begin{aligned}
+& \mathbf{Q}_{\text {in }}=\left[\begin{array}{c}
+\mathbf{q}_1^{\top} \\
+\vdots \\
+\mathbf{q}_N^{\top}
+\end{array}\right]=\left[\begin{array}{c}
+\left(\mathbf{W}_q \mathbf{t}_1\right)^{\top} \\
+\vdots \\
+\left(\mathbf{W}_q \mathbf{t}_N\right)^{\top}
+\end{array}\right]=\mathbf{T}_{\text {in }} \mathbf{W}_q^{\top} \quad \triangleleft \quad \text {query matrix} 
+\\
+& \mathbf{K}_{\text {in }}=\left[\begin{array}{c}
+\mathbf{k}_1^{\top} \\
+\vdots \\
+\mathbf{k}_N^{\top}
+\end{array}\right]=\left[\begin{array}{c}
+\left(\mathbf{W}_k \mathbf{t}_1\right)^{\top} \\
+\vdots \\
+\left(\mathbf{W}_{\mathrm{k}} \mathbf{t}_N\right)^{\top}
+\end{array}\right]=\mathbf{T}_{\text {in }} \mathbf{W}_k^{\top} \quad \triangleleft \quad \text { key matrix }
+\\
+& \mathbf{V}_{\text {in }}=\left[\begin{array}{c}
+\mathbf{v}_1^{\top} \\
+\vdots \\
+\mathbf{v}_N^{\top}
+\end{array}\right]=\left[\begin{array}{c}
+\left(\mathbf{W}_v \mathbf{t}_1\right)^{\top} \\
+\vdots \\
+\left(\mathbf{W}_v \mathbf{t}_N\right)^{\top}
+\end{array}\right]=\mathbf{T}_{\text {in }} \mathbf{W}_v^{\top} \quad \triangleleft \quad \text { value matrix }
+\end{aligned}
+```
+
+
+> Note that the query and key vectors must have the same dimensionality, $m$, because we take a dot product between them. Conversely, the value vectors must match the dimensionality of the token code vectors, $d$, because these are summed up to produce the new token code vectors.
+
+Finally, we have the attention equation:
+
+```math
+\begin{aligned}
+\mathbf{A} & =f\left(\mathbf{T}_{\mathrm{in}}\right)=\text { softmax }\left(\frac{\mathbf{Q}_{\mathrm{in}} \mathbf{K}_{\mathrm{in}}^{\top}}{\sqrt{m}}\right) \quad \triangleleft \quad \text { attention matrix } \\
+\mathbf{T}_{\text {out }} & =\mathbf{A} \mathbf{V}_{\text {in }}
+\end{aligned}
+```
+
+where the softmax is taken within each row (i.e., over the vector of matches for each separate query vector.
+"""
+
 # ╔═╡ 245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
-# @Alex code. Trying to show with causal attention with mask.
+# Showing causal attention with mask.
 let
 	dim, attn_dim = 3, 8
+	args = (aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false)
 	
 	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
 	W_Q = randn(n_tokens, dim)
 	W_K = randn(n_tokens, dim)
 	W_V = randn(dim, dim)
 
-	p1 = heatmap(X, title="Input Tokens X", aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false)
-	p2 = heatmap(W_Q, title="W_q", aspect_ratio=1, colorbar=false)
-	p3 = heatmap(W_K, title="W_k", aspect_ratio=1, colorbar=false)
-	p4 = heatmap(W_V, title="X W_v", aspect_ratio=1, colorbar=false)
+	p1 = heatmap(X, title="Input Tokens X"; args...)
+	p2 = heatmap(W_Q, title="W_q"; args...)
+	p3 = heatmap(W_K, title="W_k"; args...)
+	p4 = heatmap(W_V, title="X W_v"; args...)
 
 	Q = X * transpose(W_Q)
 	K = X * transpose(W_K)
 	V = X * transpose(W_V)
 	
-	p5 = heatmap(Q, title="Q = X W_q", aspect_ratio=1, colorbar=false)
-	p6 = heatmap(K, title="K = X W_k", aspect_ratio=1, colorbar=false)
-	p7 = heatmap(V, title="V = X W_v", aspect_ratio=1, colorbar=false)
+	p5 = heatmap(Q, title="Q = X W_q"; args...)
+	p6 = heatmap(K, title="K = X W_k"; args...)
+	p7 = heatmap(V, title="V = X W_v"; args...)
 	
 	scores = Q * transpose(K) / sqrt(attn_dim) # n_tokens x n_tokens
 	@assert size(scores) == (n_tokens, n_tokens)
 
-	p8 = heatmap(scores, title="attn", aspect_ratio=1, colorbar=false)
+	p8 = heatmap(scores, title="attn"; args...)
 
 	mask = UpperTriangular(ones(n_tokens, n_tokens))
 	
-	p9 = heatmap(mask, title="mask", aspect_ratio=1, colorbar=false)
+	p9 = heatmap(mask, title="mask"; args...)
 	
 	masked_scores = scores .* mask .+ (1 .- mask) 
 	
-	p10 = heatmap(masked_scores, title="masked attn", aspect_ratio=1, colorbar=false)
+	p10 = heatmap(masked_scores, title="masked attn"; args...)
 
 	alpha = softmax(masked_scores, dims=ndims(masked_scores)) 
 	
-	p11 = heatmap(alpha, title="alpha", aspect_ratio=1, colorbar=false)
+	p11 = heatmap(alpha, title="alpha"; args...)
 
 	attn_output = alpha * V
 	
-	p12 = heatmap(attn_output, title="output", aspect_ratio=1, colorbar=false)
+	p12 = heatmap(attn_output, title="output"; args...)
 
 	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12]..., layout=(3,4))
 end
 
-# ╔═╡ e9ce397a-b315-470d-9534-cdd1dad12a1b
-# key / query demonstration
-let
-    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
-    imf = download(url)
-    im = load(imf)
-end
+# ╔═╡ 1c2692a1-e8a0-4926-ad42-3787671eeb51
+md"""
+In expanded detail, here are the full mechanics of a self-attention layer:
+
+![Self-Attention Layer]()
+"""
 
 # ╔═╡ 74eb85f0-ea48-48cd-b732-4d97f4883c85
 ### 2. Multi-Headed Attention
@@ -239,7 +312,7 @@ let
 	    aspect_ratio=:equal,
 		xlabel="Token Index",
     	ylabel="Token Index",
-    	title="Attention Matrix",
+    	title="Attention Matrix (last head)",
 	    c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
 	    clabel="Weight",                 # Label for the color bar
 	    colorbar=true,                   # Show the color bar
@@ -248,6 +321,14 @@ let
 	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
 	    yticks=1:n_tokens,
 	)
+end
+
+# ╔═╡ e9ce397a-b315-470d-9534-cdd1dad12a1b
+# key / query demonstration
+let
+    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
+    imf = download(url)
+    im = load(imf)
 end
 
 # ╔═╡ c12ffac7-7533-42fa-a721-30938396e898
@@ -413,10 +494,12 @@ __Show side-by-side comparison:__
 # ╔═╡ db19fde5-434c-4030-9a61-0200ddca659f
 md"""
 But recall that what we want is to make is a **Vision Transformer**. This requires some additional layers for tokenizing an image. These are
-(1) patch embedding; and
-(2) positional encoding
+* (1) patch embedding; and
+* (2) positional encoding
 
 ![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_embed.jpg?raw=true)
+
+We will explore these in detail next.
 """
 
 # ╔═╡ a2bf29b4-174d-42e1-94b6-39822556349c
@@ -449,6 +532,7 @@ function visualize_patches(image_square, patch_size)
     # Calculate grid dimensions (assuming a square grid)
     n_patches = length(patches)
     grid_dim = ceil(Int, sqrt(n_patches))
+	display(grid_dim)
     
     # Initialize a list to hold the individual patch plots
     plot_list = []
@@ -461,10 +545,12 @@ function visualize_patches(image_square, patch_size)
     end
     
     # Display the grid of patches with custom grid padding
+	# pyplot()
     plot(
         plot_list...,
         layout=(grid_dim, grid_dim),
-        size=(600, 600),
+		margin=0mm,
+        size=(900, 900),
     )
 end
 
@@ -473,8 +559,7 @@ end
 # Load and preprocess an example image
 begin
 	# Download image of Philip
-    url = "https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/reduced_phil.png?raw=true" # low-res
-	# url = "https://user-images.githubusercontent.com/6933510/107239146-dcc3fd00-6a28-11eb-8c7b-41aaf6618935.png"  # large
+	url = "https://user-images.githubusercontent.com/6933510/107239146-dcc3fd00-6a28-11eb-8c7b-41aaf6618935.png"  # high-res
     philip_filename = download(url)
 	philip = load(philip_filename)
 
@@ -488,7 +573,7 @@ begin
 	# Calculate divisors of the image size
 	function divisors_of_half_image_size(img_size)
 	    divisors = []
-	    for i in div(img_size, 12):div(img_size, 1)
+	    for i in div(img_size, 16):div(img_size, 1)
 	        if img_size % i == 0
 	            push!(divisors, i)
 	        end
@@ -564,10 +649,9 @@ end
 # ╔═╡ 02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # Test `PatchEmbedLinear` implementation for RGB images
 let
-    img_size = 256      # Image size (assumes square image: img_size x img_size)
-    patch_size = 32     # Patch size (each patch is patch_size x patch_size)
-    nin = 3             # Number of input channels (e.g., RGB)
-    nout = 64           # Desired output dimensionality for each patch
+    img_size = size(image_square, 1) # Image size (assumes square image: img_size x img_size)
+    nin = size(channelview(image_square), 1) # Number of input channels (e.g., RGB)
+    nout = 64  # Desired output dimensionality for each patch embedding
 
     # Create a `PatchEmbedLinear` instance
     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
@@ -592,7 +676,13 @@ end
 
 
 # ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
+md"""
+### Positional Encoding
+One reason why CNNs worked so well for image recognition is because they have an inductive bias for local structure. In a Trasnformer, every token can attend to every other token in the sequence. Because self-attention operation is permutation invariant, it is important to use proper positional encodingto provide order information to the model. The positional encoding $\mathbf{P} \in \mathbb{R}^{L \times d}$ has the same dimension as the input embedding, so it can be added on the input directly. 
 
+![Sinusoidal Positional Encoding](https://github.com/qsimeon/julia_class_project/blob/main/sine_encoding.jpg?raw=True)
+
+"""
 
 # ╔═╡ c36ad934-e4fe-42c0-bd9b-d11913a8adff
 
@@ -3240,16 +3330,20 @@ version = "1.4.1+1"
 # ╔═╡ Cell order:
 # ╠═4cc97f4d-7a4c-487a-8684-1edd1bb963a5
 # ╠═ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
+# ╠═970f0e2b-459b-4baa-ae30-886c2bada7b4
 # ╠═191c435c-4094-4326-9e18-0ee8dc3058ab
 # ╠═2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 # ╠═afe50e6c-9e61-4246-a8ac-bebc83e2715c
 # ╠═ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
 # ╠═9adfff6a-e83e-4266-8bae-67f4a16e011f
 # ╠═5a498179-0be9-4e70-988f-14575d12a396
+# ╠═79d6d0eb-4fec-4ad5-a5b7-9718864b7cfd
+# ╠═c3eaadcf-a06d-4469-ba9a-399043e72a9f
 # ╠═245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
-# ╠═e9ce397a-b315-470d-9534-cdd1dad12a1b
+# ╠═1c2692a1-e8a0-4926-ad42-3787671eeb51
 # ╠═74eb85f0-ea48-48cd-b732-4d97f4883c85
 # ╠═c8d32f75-83a3-40d7-b136-4bf5966612a0
+# ╠═e9ce397a-b315-470d-9534-cdd1dad12a1b
 # ╠═c12ffac7-7533-42fa-a721-30938396e898
 # ╠═a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
