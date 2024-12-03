@@ -402,8 +402,11 @@ Using callable structs, parametric types, and matrix operations, we set up the b
 
 Let's view our Julia callable struct implemenations of the `AttentionHead` and `Transformer` modules side-by-side with a bare-bones implementation in PyTorch.
 
-**TODO:** Show side-by-side comparison.
+__Show side-by-side comparison:__
 
+![AttentionHead PyJl](https://github.com/qsimeon/julia_class_project/blob/main/attention_python_julia.jpg?raw=true)
+
+![Transformer PyJl](https://github.com/qsimeon/julia_class_project/blob/main/transformer_python_julia.jpg?raw=true)
 ---
 """
 
@@ -507,86 +510,86 @@ visualize_patches(image_square, patch_size)
 
 # ╔═╡ 44f39ba0-68e6-450d-a7fa-99f180a48b67
 md"""
-A patch embedding layer is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector.
+A patch embedding layer is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector. Since we are working on RGB images (3 channels), we define a lienar projection for each channels
 """
 
 # ╔═╡ a2ff04a3-4118-47b8-b768-fc2a4986167b
 ### 6. PatchEmbedLinear 
 struct PatchEmbedLinear{T<:Real}
-	img_size::Int
-	patch_size::Int
-	nin::Int
-	nout::Int
-	num_patches::Int
-	W::Matrix{T} # Linear projection weights
+    img_size::Int
+    patch_size::Int
+    nin::Int  # Number of input channels (e.g., RGB → nin = 3)
+    nout::Int # Desired output dimensionality for each patch
+    num_patches::Int
+    W::Vector{Matrix{T}} # Linear projection weights, one for each channel
 
-	function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
-		@assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
-		num_patches = (img_size ÷ patch_size)^2
-		W = randn(T, nout, patch_size^2 * nin) # Linear projection matrix for each patch
-		return new{T}(img_size, patch_size, nin, nout, num_patches, W)
-	end
+    function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
+        @assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
+        num_patches = (img_size ÷ patch_size)^2
+        # Create a distinct weight matrix for each channel
+        W = [randn(T, nout, patch_size^2) for _ in 1:nin]
+        return new{T}(img_size, patch_size, nin, nout, num_patches, W)
+    end
 
-	# Apply the patch embedding to an image
-	function (patch_embed::PatchEmbedLinear)(img::Matrix{RGB{N0f8}})
-		# Convert patches to a matrix and project using `W`
-		patch_matrix = hcat(patches...)' # Shape: (num_patches, patch_size^2 * nin)
-		projected_patches = patch_matrix * transpose(patch_embed.W) # Shape: (num_patches, nout)
-	end
+    function (embed::PatchEmbedLinear{T})(image::Matrix{<:RGB}) where T<:Real
+        # Ensure image size matches expected dimensions
+        img_size = size(image, 1)
+        @assert img_size == embed.img_size "Image size does not match module configuration"
 
-	# # Apply the Transformer model to input X
- #    function (transformer::Transformer{T})(X::Matrix{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
- #        collected_alphas = []  # To store attention weights from each layer
- #        for layer in transformer.layers
- #            X, alphas = layer(X, attn_mask)  # Apply each residual block
- #            push!(collected_alphas, alphas)  # Collect attention weights
- #        end
-	# 	# Return the final output and collected attention weights from all layers
- #        return X, collected_alphas
- #    end
+        # Split the RGB image into three separate channel matrices
+        channels = channelview(image)  # Shape: (3, 256, 256)
+        @assert size(channels, 1) == embed.nin "Number of image channels does not match nin"
+
+        # Extract patches and project for each channel
+        projected_channels = []
+        for c in 1:embed.nin
+            # Extract the channel matrix (2D slice)
+            channel_matrix = Matrix{T}(channels[c, :, :])  # Shape: (256, 256)
+            # Extract patches
+            patches = extract_patches(channel_matrix, embed.patch_size)
+            # Flatten patches and project
+            patch_matrix = hcat([vec(patch) for patch in patches]...)'  # Shape: (num_patches, patch_size^2)
+            projected = patch_matrix * transpose(embed.W[c])  # Shape: (num_patches, nout)
+            push!(projected_channels, projected)
+        end
+
+        # Sum the projected embeddings across channels
+        projected_patches = reduce(+, projected_channels)  # Shape: (num_patches, nout)
+
+        return projected_patches
+    end
 end
 
 
 # ╔═╡ 02fb8ff3-647e-4d55-8c2b-a1d9066338ed
-# # Test `PatchEmbedLinear` implementation
-# begin
-#     # Parameters
-#     img_size = 256      # Image size (assumes square image: img_size x img_size)
-#     patch_size = 32     # Patch size (each patch is patch_size x patch_size)
-#     nin = 3             # Number of input channels (e.g., RGB image)
-#     nout = 8            # Desired output dimensionality for each patch
+# Test `PatchEmbedLinear` implementation for RGB images
+let
+    img_size = 256      # Image size (assumes square image: img_size x img_size)
+    patch_size = 32     # Patch size (each patch is patch_size x patch_size)
+    nin = 3             # Number of input channels (e.g., RGB)
+    nout = 64           # Desired output dimensionality for each patch
 
-#     # Create a `PatchEmbedLinear` instance
-#     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
+    # Create a `PatchEmbedLinear` instance
+    patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
 
-#     # Generate a random input image
-#     image = randn(Float64, img_size, img_size, nin) # Shape: (H, W, nin)
+    # Use the color image of Philip the dog (loaded as `image_square`)
+    embedded_patches = patch_embed(image_square)
 
-#     # Extract patches and project them using the linear projection
-#     patches = []
-#     for i in 1:patch_size:img_size
-#         for j in 1:patch_size:img_size
-#             # Extract a patch and flatten it
-#             patch = vec(view(image, i:i+patch_size-1, j:j+patch_size-1, :))
-#             push!(patches, patch)
-#         end
-#     end
+    # Verify output dimensions
+    println("Input image shape: ", size(image_square))
+    println("Number of patches: ", patch_embed.num_patches)
+    println("Embedded patches shape: ", size(embedded_patches))
 
-#     # Verify output dimensions
-#     println("Input image shape: ", size(image))
-#     println("Number of patches: ", patch_embed.num_patches)
-#     println("Projected patches shape: ", size(projected_patches))
+    # Visualize the embedded patches (first few)
+    heatmap(embedded_patches[1:10, :],
+        title="First 10 Embedded Patches",
+        xlabel="Embedding Dimension",
+        ylabel="Patch Index",
+        c=:plasma,
+        clabel="Value",
+        aspect_ratio=:equal)
+end
 
-#     # Visualize the first few projected patches
-#     heatmap(projected_patches[1:10, :],
-#         title="First 10 Projected Patches",
-#         xlabel="Output Dimensions",
-#         ylabel="Patch Index",
-#         c=:plasma,
-#         clabel="Value",
-#         colorbar=true,
-#         aspect_ratio=:equal)
-# end
 
 # ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
 
