@@ -494,7 +494,7 @@ But recall that what we want is to make is a **Vision Transformer**. This requir
 * (1) patch embedding; and
 * (2) positional encoding
 
-![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_embed.jpg?raw=true)
+![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_position.jpg?raw=true)
 
 We will explore these in detail next.
 """
@@ -506,6 +506,8 @@ md"""
 It turns out the patch embedding can be implemented by applying a strided convolution. However, we will take the more direct and visualizable approach of chopping up an image into patches and linearly projecting the vector that is the flattened patch to the desired dimensionality. 
 
 Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
+
+![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_embed.jpg?raw=true)
 """
 
 # ╔═╡ ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
