@@ -17,19 +17,28 @@ end
 # ╔═╡ 4cc97f4d-7a4c-487a-8684-1edd1bb963a5
 begin
 	using LinearAlgebra, Random
-	using Plots, PlutoUI, Images
+	using Plots.PlotMeasures, PlutoUI, Images
 	using MLDatasets, Enzyme 
 end 
 
 # ╔═╡ ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 md"""
-### Our project is to implement a simple Vision Transformer in Julia!
+### Our project is to implement a simple Vision Transformer (ViT) in Julia!
 
-The Transformer architecture, introduced in the paper _Attention Is All You Need_ (Vaswani et al., 2017), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data) and it quickly replaced convolutional neural networks for image-based tasks. 
+The Transformer architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
+
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_arch.jpg?raw=true)
+
+There are many, _many_ great blogs on Trasnformers if you want to learn more:
+- https://blog.rush-nlp.com/the-annotated-transformer.html
+- https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/
+- https://jalammar.github.io/illustrated-transformer/
 """
 
 # ╔═╡ 191c435c-4094-4326-9e18-0ee8dc3058ab
 md"""
+Until recently, the best performing models for image classifications had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
+
 ![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_arch.jpg?raw=true)
 """
 
@@ -387,9 +396,9 @@ md"""
 
 # ╔═╡ 90019339-1fdf-4541-b71b-a00b9ef7d904
 md"""
-We've set up a basic structure of a Transformer using callable structs, parametric types, and matrix operations. 
+Using callable structs, parametric types, and matrix operations, we set up the basic components and combined them to create a Transformer module . 
 
-Let's view our Julia callable struct implemenation side-by-side with a bare-bones implementation in PyTorch.
+Let's view our Julia callable struct implemenations of the `AttentionHead` and `Transformer` modules side-by-side with a bare-bones implementation in PyTorch.
 
 **TODO:** Show side-by-side comparison.
 
@@ -398,7 +407,9 @@ Let's view our Julia callable struct implemenation side-by-side with a bare-bone
 
 # ╔═╡ db19fde5-434c-4030-9a61-0200ddca659f
 md"""
-We want to make a Vision Transformer. This requires some additional layers for image processing: patch embedding and positional encoding. 
+But recall that what we want to make is a **Vision Transformer**. This requires some additional layers for tokenizing an image. Thes are
+(1) patch embedding; and
+(2) positional encoding
 
 **TODO:** Implement `PatchEmbed` in Julia and make a visual example of applying it to some image like this:
 
@@ -426,28 +437,32 @@ function extract_patches(image_square, patch_size)
 end
 
 # ╔═╡ c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
-# Function to visualize patches
 function visualize_patches(image_square, patch_size)
-	# Extract patches from image
-	patches = extract_patches(image_square, patch_size)
-	
-	# Calculate grid dimensions (assuming a square grid)
-	n_patches = length(patches)
-	grid_dim = Int(sqrt(n_patches))
-	
-	# Initialize a list to hold the individual patch plots
-	plot_list = []
-	
-	# Generate the grid of patches
-	for idx in 1:n_patches
-		# Create a heatmap for each patch without axis or colorbar
-		p = heatmap(patches[idx], color=:grays, axis=false, colorbar=false)
-		push!(plot_list, p)
-	end
-	
-	# Display the grid of patches
-	plot(plot_list..., layout=(grid_dim, grid_dim), margin=5, size=(800, 800)) 
+    # Extract patches from image
+    patches = extract_patches(image_square, patch_size)
+    
+    # Calculate grid dimensions (assuming a square grid)
+    n_patches = length(patches)
+    grid_dim = ceil(Int, sqrt(n_patches))
+    
+    # Initialize a list to hold the individual patch plots
+    plot_list = []
+    
+    # Generate the grid of patches
+    for idx in 1:n_patches
+        # Create a heatmap for each patch without axis or colorbar
+        p = heatmap(patches[idx], color=:grays, axis=false, colorbar=false)
+        push!(plot_list, p)
+    end
+    
+    # Display the grid of patches with custom grid padding
+    plot(
+        plot_list...,
+        layout=(grid_dim, grid_dim),
+        size=(600, 600),
+    )
 end
+
 
 # ╔═╡ 9e705315-d646-4373-854d-47a9f9d9076b
 # Load and preprocess an example image
@@ -468,7 +483,7 @@ begin
 	# Calculate divisors of the image size
 	function divisors_of_half_image_size(img_size)
 	    divisors = []
-	    for i in 1:div(img_size, 2)
+	    for i in div(img_size, 12):div(img_size, 1)
 	        if img_size % i == 0
 	            push!(divisors, i)
 	        end
@@ -478,19 +493,15 @@ begin
 	
 	# Get the divisors of the image size
 	patch_size_options = divisors_of_half_image_size(img_size)
-	mid = length(patch_size_options)//2
 	
 	# Create the slider with the patch size options
-	@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[mid])
+	@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[1])
 end
 
 
 # ╔═╡ 8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # Visualize patches for the chosen `patch_size`
 visualize_patches(image_square, patch_size)
-
-# ╔═╡ adbc3243-fc21-4c24-b5e7-8661b035466c
-
 
 # ╔═╡ 44f39ba0-68e6-450d-a7fa-99f180a48b67
 md"""
@@ -744,7 +755,7 @@ PlutoUI = "~0.7.60"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.6"
+julia_version = "1.10.7"
 manifest_format = "2.0"
 project_hash = "5c73c9c76d86a3e6feea0926b1cbaa7f3163209a"
 
@@ -3251,7 +3262,6 @@ version = "1.4.1+1"
 # ╠═9e705315-d646-4373-854d-47a9f9d9076b
 # ╠═5a0607bc-bf03-4b19-894f-1bcfd68a0762
 # ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
-# ╠═adbc3243-fc21-4c24-b5e7-8661b035466c
 # ╠═44f39ba0-68e6-450d-a7fa-99f180a48b67
 # ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
 # ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
