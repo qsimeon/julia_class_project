@@ -311,6 +311,14 @@ struct AttentionResidual{T<:Real}
 end
 
 
+# ╔═╡ 5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
+# key / query demonstration
+let
+    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
+    imf = download(url)
+    im = load(imf)
+end
+
 # ╔═╡ 9bd646c3-ef9d-4b06-a598-267c0cbdff4a
 ### 5. Transformer
 struct Transformer{T<:Real}
@@ -404,53 +412,21 @@ It turns out the patch embedding can be implemented by applying a strided convol
 Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially *tokenizing* our image data.
 """
 
-# ╔═╡ a2ff04a3-4118-47b8-b768-fc2a4986167b
-### 5. PatchEmbedLinear struct 
-begin
-	struct PatchEmbedLinear{T<:Real}
-	    img_size::Int
-	    patch_size::Int
-	    nin::Int
-	    nout::Int
-	    num_patches::Int
-	    W::Matrix{T} # Linear projection weights
-	
-	    function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
-	        @assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
-	        
-	        num_patches = (img_size ÷ patch_size)^2
-	        W = randn(T, nout, patch_size^2 * nin) # Linear projection matrix for each patch
-	        return new{T}(img_size, patch_size, nin, nout, num_patches, W)
-	    end
-	end
-end
-
-
-# ╔═╡ 9e705315-d646-4373-854d-47a9f9d9076b
-# Load and preprocess the image
-begin
-    image_url = "https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/reduced_phil.png?raw=true"
-    image_file = download(image_url)
-    image = load(image_file)
-
-    # Resize the image to a square (e.g., 256x256)
-    img_size = 256
-    image_square = imresize(image, (img_size, img_size))
-end
-
 # ╔═╡ ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
 # Define function to extract patches
-function extract_patches(image, patch_size)
+function extract_patches(image_square, patch_size)
     patches = []
-    for i in 1:patch_size:size(image, 1)
-        for j in 1:patch_size:size(image, 2)
-            push!(patches, view(image, i:i+patch_size-1, j:j+patch_size-1))
+    for i in 1:patch_size:size(image_square, 1)
+        for j in 1:patch_size:size(image_square, 2)
+            patch = view(image_square, i:i+patch_size-1, j:j+patch_size-1)
+            push!(patches, patch)
         end
     end
     return patches
 end
 
-# ╔═╡ 5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
+# ╔═╡ c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
+# Function to visualize patches
 function visualize_patches(image_square, patch_size)
 	# Extract patches from image
 	patches = extract_patches(image_square, patch_size)
@@ -470,29 +446,134 @@ function visualize_patches(image_square, patch_size)
 	end
 	
 	# Display the grid of patches
-	plot(plot_list..., layout=(grid_dim, grid_dim), margin=5, size=(800, 800)) #title="Patches of Image", 
-	plot(plot_list..., layout=(grid_dim, grid_dim), #title="Patches of Image", 
-	size=(800, 800))
+	plot(plot_list..., layout=(grid_dim, grid_dim), margin=5, size=(800, 800)) 
 end
 
+# ╔═╡ 9e705315-d646-4373-854d-47a9f9d9076b
+# Load and preprocess an example image
+begin
+	# Download image of Philip
+    url = "https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/reduced_phil.png?raw=true" # low-res
+	# url = "https://user-images.githubusercontent.com/6933510/107239146-dcc3fd00-6a28-11eb-8c7b-41aaf6618935.png"  # large
+    philip_filename = download(url)
+	philip = load(philip_filename)
+
+    # Resize the image to a square (e.g., 256x256)
+    img_size = 256
+    image_square = imresize(philip, (img_size, img_size))
+end
 
 # ╔═╡ 5a0607bc-bf03-4b19-894f-1bcfd68a0762
-@bind patch_size Slider([1:12...].^2, show_value=true) # use square patches
-
-# ╔═╡ 8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
-# Example usage (assuming `image_square` and `extract_patches` are defined):
-visualize_patches(image_square, patch_size)
-
-# ╔═╡ 5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
-# key / query demonstration
-let
-    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
-    imf = download(url)
-    im = load(imf)
+begin
+	# Calculate divisors of the image size
+	function divisors_of_half_image_size(img_size)
+	    divisors = []
+	    for i in 1:div(img_size, 2)
+	        if img_size % i == 0
+	            push!(divisors, i)
+	        end
+	    end
+	    return divisors
+	end
+	
+	# Get the divisors of the image size
+	patch_size_options = divisors_of_half_image_size(img_size)
+	mid = length(patch_size_options)//2
+	
+	# Create the slider with the patch size options
+	@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[mid])
 end
 
-# ╔═╡ 1d4a8cd0-fb5f-4e92-a866-e0735a309f54
 
+# ╔═╡ 8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
+# Visualize patches for the chosen `patch_size`
+visualize_patches(image_square, patch_size)
+
+# ╔═╡ adbc3243-fc21-4c24-b5e7-8661b035466c
+
+
+# ╔═╡ 44f39ba0-68e6-450d-a7fa-99f180a48b67
+md"""
+A patch embedding layer is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector.
+"""
+
+# ╔═╡ a2ff04a3-4118-47b8-b768-fc2a4986167b
+### 6. PatchEmbedLinear 
+struct PatchEmbedLinear{T<:Real}
+	img_size::Int
+	patch_size::Int
+	nin::Int
+	nout::Int
+	num_patches::Int
+	W::Matrix{T} # Linear projection weights
+
+	function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
+		@assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
+		num_patches = (img_size ÷ patch_size)^2
+		W = randn(T, nout, patch_size^2 * nin) # Linear projection matrix for each patch
+		return new{T}(img_size, patch_size, nin, nout, num_patches, W)
+	end
+
+	# Apply the patch embedding to an image
+	function (patch_embed::PatchEmbedLinear)(img::Matrix{RGB{N0f8}})
+		# Convert patches to a matrix and project using `W`
+		patch_matrix = hcat(patches...)' # Shape: (num_patches, patch_size^2 * nin)
+		projected_patches = patch_matrix * transpose(patch_embed.W) # Shape: (num_patches, nout)
+	end
+
+	# # Apply the Transformer model to input X
+ #    function (transformer::Transformer{T})(X::Matrix{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
+ #        collected_alphas = []  # To store attention weights from each layer
+ #        for layer in transformer.layers
+ #            X, alphas = layer(X, attn_mask)  # Apply each residual block
+ #            push!(collected_alphas, alphas)  # Collect attention weights
+ #        end
+	# 	# Return the final output and collected attention weights from all layers
+ #        return X, collected_alphas
+ #    end
+end
+
+
+# ╔═╡ 02fb8ff3-647e-4d55-8c2b-a1d9066338ed
+# # Test `PatchEmbedLinear` implementation
+# begin
+#     # Parameters
+#     img_size = 256      # Image size (assumes square image: img_size x img_size)
+#     patch_size = 32     # Patch size (each patch is patch_size x patch_size)
+#     nin = 3             # Number of input channels (e.g., RGB image)
+#     nout = 8            # Desired output dimensionality for each patch
+
+#     # Create a `PatchEmbedLinear` instance
+#     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
+
+#     # Generate a random input image
+#     image = randn(Float64, img_size, img_size, nin) # Shape: (H, W, nin)
+
+#     # Extract patches and project them using the linear projection
+#     patches = []
+#     for i in 1:patch_size:img_size
+#         for j in 1:patch_size:img_size
+#             # Extract a patch and flatten it
+#             patch = vec(view(image, i:i+patch_size-1, j:j+patch_size-1, :))
+#             push!(patches, patch)
+#         end
+#     end
+
+#     # Verify output dimensions
+#     println("Input image shape: ", size(image))
+#     println("Number of patches: ", patch_embed.num_patches)
+#     println("Projected patches shape: ", size(projected_patches))
+
+#     # Visualize the first few projected patches
+#     heatmap(projected_patches[1:10, :],
+#         title="First 10 Projected Patches",
+#         xlabel="Output Dimensions",
+#         ylabel="Patch Index",
+#         c=:plasma,
+#         clabel="Value",
+#         colorbar=true,
+#         aspect_ratio=:equal)
+# end
 
 # ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
 
@@ -512,8 +593,8 @@ end
 
 # ╔═╡ 867dae62-6570-4131-8713-7867196a8736
 struct Sequential{T<:Real}
-	# Is is just an erray of modules where each module is 
-	# applied to input sequenctially to the input.
+	# This is just an array of modules where each module  
+	# is applied to input sequentially to the input.
 	seq::Vector{T}
 	function Sequential{T}(seq::Vector{T}) where T<:Real
 		return new{T}(seq)
@@ -595,21 +676,21 @@ struct VisionTransformer{T<:Real}
 end
 
 # ╔═╡ 2f5badaf-4342-42ec-8240-c5c642c1fa8f
-# Test `Transformer` implementation
-let
-	n_channels = 3
-	nout = 5
-	img_size = 32
-	patch_size = 4
-	dim = 2
-	attn_dim = 1
-	mlp_dim = 3
-	num_heads = 3 
-	num_layers = 6
-	vision_transformer = VisionTransformer{Float64}(n_channels, nout, img_size, patch_size, dim, attn_dim, mlp_dim, num_heads, num_layers)
+# # Test `VisionTransformerTransformer` implementation
+# let
+# 	n_channels = 3
+# 	nout = 5
+# 	img_size = 32
+# 	# patch_size = 4
+# 	dim = 2
+# 	attn_dim = 1
+# 	mlp_dim = 3
+# 	num_heads = 3 
+# 	num_layers = 6
+# 	vision_transformer = VisionTransformer{Float64}(n_channels, nout, img_size, patch_size, dim, attn_dim, mlp_dim, num_heads, num_layers)
 
-	out, alphas = vision_transformer(randn(32,32))
-end
+# 	out, alphas = vision_transformer(randn(32,32))
+# end
 
 # ╔═╡ 33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # Was attemoting to implement a linear layer
@@ -3156,6 +3237,7 @@ version = "1.4.1+1"
 # ╠═a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
 # ╠═97c1b967-b634-4ff0-8007-939bf8ea87fa
+# ╠═5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
 # ╠═9bd646c3-ef9d-4b06-a598-267c0cbdff4a
 # ╠═e88482de-8685-47d7-9cbb-78328eed8244
 # ╠═da2f6c55-17c5-495c-8ba3-5b2dc50a17f1
@@ -3164,22 +3246,23 @@ version = "1.4.1+1"
 # ╠═90019339-1fdf-4541-b71b-a00b9ef7d904
 # ╠═db19fde5-434c-4030-9a61-0200ddca659f
 # ╠═a2bf29b4-174d-42e1-94b6-39822556349c
-# ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
-# ╠═9e705315-d646-4373-854d-47a9f9d9076b
 # ╠═ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
-# ╠═5e2a6e26-e0b6-4a7f-a02e-9a2f6708605b
+# ╠═c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
+# ╠═9e705315-d646-4373-854d-47a9f9d9076b
 # ╠═5a0607bc-bf03-4b19-894f-1bcfd68a0762
 # ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
-# ╠═5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
-# ╠═1d4a8cd0-fb5f-4e92-a866-e0735a309f54
+# ╠═adbc3243-fc21-4c24-b5e7-8661b035466c
+# ╠═44f39ba0-68e6-450d-a7fa-99f180a48b67
+# ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
+# ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # ╠═8e813069-1265-4469-980d-e1450d6ae173
 # ╠═c36ad934-e4fe-42c0-bd9b-d11913a8adff
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
 # ╠═867dae62-6570-4131-8713-7867196a8736
 # ╠═307db93b-20f3-4dd1-9dd7-e05780592245
 # ╠═6e615061-9600-4a98-8c15-c30110dde0ee
-# ╠═2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # ╠═e32c2cb0-2862-4f7a-9470-61ea5544202e
+# ╠═2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # ╠═22689f54-30d2-41fc-89ca-5bf0f95e855d
 # ╠═89d0ae2a-d00a-4fc2-b345-f13aed739fbc

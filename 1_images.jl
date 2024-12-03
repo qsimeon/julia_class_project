@@ -229,6 +229,9 @@ Using the `Images.jl` package (loaded at the start of this notebook; scroll up a
 # ╔═╡ aafe76a6-601e-11eb-1ff5-01885c5238da
 philip = load(philip_filename)
 
+# ╔═╡ 7d820816-18ef-42f1-a6d3-5c920898e8e3
+typeof(philip)
+
 # ╔═╡ e86ed944-ee05-11ea-3e0f-d70fc73b789c
 md"_Hi there Philip_"
 
@@ -1764,6 +1767,7 @@ version = "17.4.0+2"
 # ╠═34ffc3d8-601e-11eb-161c-6f9a07c5fd78
 # ╟─abaaa980-601e-11eb-0f71-8ff02269b775
 # ╠═aafe76a6-601e-11eb-1ff5-01885c5238da
+# ╠═7d820816-18ef-42f1-a6d3-5c920898e8e3
 # ╟─e86ed944-ee05-11ea-3e0f-d70fc73b789c
 # ╟─c99d2aa8-601e-11eb-3469-497a246db17c
 # ╟─11dff4ce-6bca-11eb-1056-c1345c796ed4
