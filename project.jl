@@ -507,7 +507,7 @@ It turns out the patch embedding can be implemented by applying a strided convol
 
 Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
 
-![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_embed.jpg?raw=true)
+![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_tokenize.jpg?raw=true)
 """
 
 # ╔═╡ ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
@@ -531,7 +531,6 @@ function visualize_patches(image_square, patch_size)
     # Calculate grid dimensions (assuming a square grid)
     n_patches = length(patches)
     grid_dim = ceil(Int, sqrt(n_patches))
-	display(grid_dim)
     
     # Initialize a list to hold the individual patch plots
     plot_list = []
@@ -669,8 +668,7 @@ let
         xlabel="Embedding Dimension",
         ylabel="Patch Index",
         c=:plasma,
-        clabel="Value",
-        aspect_ratio=:equal)
+        clabel="Value")
 end
 
 
