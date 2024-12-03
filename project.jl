@@ -136,7 +136,7 @@ let
 	W_K = randn(n_tokens, dim)
 	W_V = randn(dim, dim)
 
-	p1 = heatmap(X, title="Input Tokens X", aspect_ratio=1, colorbar=false, grid=false, yticks=false)
+	p1 = heatmap(X, title="Input Tokens X", aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false)
 	p2 = heatmap(W_Q, title="W_q", aspect_ratio=1, colorbar=false)
 	p3 = heatmap(W_K, title="W_k", aspect_ratio=1, colorbar=false)
 	p4 = heatmap(W_V, title="X W_v", aspect_ratio=1, colorbar=false)
@@ -171,6 +171,14 @@ let
 	p12 = heatmap(attn_output, title="output", aspect_ratio=1, colorbar=false)
 
 	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12]..., layout=(3,4))
+end
+
+# ╔═╡ e9ce397a-b315-470d-9534-cdd1dad12a1b
+# key / query demonstration
+let
+    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
+    imf = download(url)
+    im = load(imf)
 end
 
 # ╔═╡ 74eb85f0-ea48-48cd-b732-4d97f4883c85
@@ -322,14 +330,6 @@ struct AttentionResidual{T<:Real}
 end
 
 
-# ╔═╡ 5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
-# key / query demonstration
-let
-    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
-    imf = download(url)
-    im = load(imf)
-end
-
 # ╔═╡ 9bd646c3-ef9d-4b06-a598-267c0cbdff4a
 ### 5. Transformer
 struct Transformer{T<:Real}
@@ -409,20 +409,20 @@ Let's view our Julia callable struct implemenations of the `AttentionHead` and `
 
 # ╔═╡ db19fde5-434c-4030-9a61-0200ddca659f
 md"""
-But recall that what we want to make is a **Vision Transformer**. This requires some additional layers for tokenizing an image. Thes are
+But recall that what we want is to make is a **Vision Transformer**. This requires some additional layers for tokenizing an image. These are
 (1) patch embedding; and
 (2) positional encoding
 
-**TODO:** Implement `PatchEmbed` in Julia and make a visual example of applying it to some image like this:
-
-![Patch Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_embed.jpg?raw=true)
+![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_embed.jpg?raw=true)
 """
 
 # ╔═╡ a2bf29b4-174d-42e1-94b6-39822556349c
 md"""
+### Patch Embedding
+
 It turns out the patch embedding can be implemented by applying a strided convolution. However, we will take the more direct and visualizable approach of chopping up an image into patches and linearly projecting the vector that is the flattened patch to the desired dimensionality. 
 
-Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially *tokenizing* our image data.
+Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
 """
 
 # ╔═╡ ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
@@ -3244,13 +3244,13 @@ version = "1.4.1+1"
 # ╠═9adfff6a-e83e-4266-8bae-67f4a16e011f
 # ╠═5a498179-0be9-4e70-988f-14575d12a396
 # ╠═245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
+# ╠═e9ce397a-b315-470d-9534-cdd1dad12a1b
 # ╠═74eb85f0-ea48-48cd-b732-4d97f4883c85
 # ╠═c8d32f75-83a3-40d7-b136-4bf5966612a0
 # ╠═c12ffac7-7533-42fa-a721-30938396e898
 # ╠═a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
 # ╠═97c1b967-b634-4ff0-8007-939bf8ea87fa
-# ╠═5257cfb8-ce20-4b73-bc4c-2182a0bd29ad
 # ╠═9bd646c3-ef9d-4b06-a598-267c0cbdff4a
 # ╠═e88482de-8685-47d7-9cbb-78328eed8244
 # ╠═da2f6c55-17c5-495c-8ba3-5b2dc50a17f1
