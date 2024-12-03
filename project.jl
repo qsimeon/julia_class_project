@@ -16,7 +16,7 @@ end
 
 # ╔═╡ 4cc97f4d-7a4c-487a-8684-1edd1bb963a5
 begin
-	using LinearAlgebra, Random
+	using LinearAlgebra, Random, LaTeXStrings
 	using Plots, Plots.PlotMeasures, PlutoUI, Images
 	using MLDatasets, Enzyme 
 end 
@@ -38,29 +38,30 @@ There are many, _many_ great blogs on Trasnformers if you want to learn more:
 # ╔═╡ 970f0e2b-459b-4baa-ae30-886c2bada7b4
 
 md"""
-One thing to keep in mind throughout this notebook is the idea that Transformers operate on *tokens*. Conceptually, they may be though of as _token nets_, which are an abtraction or generalization of the more familiar _neural nets_.
-
-![Token Nets](!token_nets)
-
-Token nets are just like neural nets, alternating between layers that mix nodes in linear combinations (e.g., fully connected linear layers, convolutional layers, etc.) and layers that apply a pointwise nonlinearity to each node (e.g., relus, per-token MLPs). 
-
----
-
 **NOTE:** We adapt/borrow a lot of material/concepts from
 [Torralba, A., Isola, P., & Freeman, W. T. (2021, December 1). _Foundations of Computer Vision_. MIT Press; The MIT Press, Massachusetts Institute of Technology.](https://mitpress.mit.edu/9780262048972/foundations-of-computer-vision/)
 
+---
+
+One thing to keep in mind throughout this notebook is that Transformers operate on **tokens**. Conceptually, the transformer architecture may be thought of as a _token net_, which is abtraction or generalization of the more familiar _neural nets_.
+
+![Token Nets](https://github.com/qsimeon/julia_class_project/blob/main/token_net.jpg?raw=True)
+
+Token nets are just like neural nets, alternating between layers that mix nodes in linear combinations (e.g., fully connected linear layers, convolutional layers, etc.) and layers that apply a pointwise nonlinearity to each node (e.g., relus, per-token MLPs). 
 """
 
 # ╔═╡ 191c435c-4094-4326-9e18-0ee8dc3058ab
 md"""
-Until recently, the best performing models for image classifications had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
+Until recently, the best performing models for image classification had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
 
 ![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_arch.jpg?raw=true)
 """
 
 # ╔═╡ 2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 md"""
-Let’s start by defining key components of a *Transformer* model using Julia structs and parametric types, similar to the structure we implemented in *Homework 3*. 
+Let’s start by defining key components of a **Transformer** model using Julia structs and parametric types, similar to the structure we implemented in *Homework 3*. 
+
+---
 
 We will implement the `AttentionHead`, `MultiHeadedAttention`, and `FeedForwardNetwork` modules as Julia structs. This will set up the parts which get combined together in the `Transformer` model.
 """
@@ -142,13 +143,9 @@ let
 
 end
 
-# ╔═╡ 79d6d0eb-4fec-4ad5-a5b7-9718864b7cfd
-md"""
-"""
-
 # ╔═╡ c3eaadcf-a06d-4469-ba9a-399043e72a9f
 md"""
-To compute the query, key, and value for a set of input tokens, $T_{\mathrm{is}}$, we apply the same linear transformations to each token in the set, resulting in matrices $\mathbf{Q}_{\mathrm{in}}, \mathbf{K}_{\mathrm{in}} \in \mathbb{R}^{N \times m}$ and $V_{\text {in }} \in \mathbb{R}^{N \times d}$, where each row is the query/key/value for each token:
+To compute the query, key, and value for a set of input tokens, $\mathbf{T}_{\text {in }}$, we apply the same linear transformations to each token in the set, resulting in matrices $\mathbf{Q}_{\mathrm{in}}, \mathbf{K}_{\mathrm{in}} \in \mathbb{R}^{N \times m}$ and $\mahbf{V}_{\text {in }} \in \mathbb{R}^{N \times d}$, where each row is the query/key/value for each token:
 
 ```math
 \begin{aligned}
@@ -191,7 +188,7 @@ Finally, we have the attention equation:
 
 ```math
 \begin{aligned}
-\mathbf{A} & =f\left(\mathbf{T}_{\mathrm{in}}\right)=\text { softmax }\left(\frac{\mathbf{Q}_{\mathrm{in}} \mathbf{K}_{\mathrm{in}}^{\top}}{\sqrt{m}}\right) \quad \triangleleft \quad \text { attention matrix } \\
+\mathbf{A} & = \text { softmax }\left(\frac{\mathbf{Q}_{\mathrm{in}} \mathbf{K}_{\mathrm{in}}^{\top}}{\sqrt{m}}\right) \quad \triangleleft \quad \text { attention matrix } \\
 \mathbf{T}_{\text {out }} & =\mathbf{A} \mathbf{V}_{\text {in }}
 \end{aligned}
 ```
@@ -203,25 +200,25 @@ where the softmax is taken within each row (i.e., over the vector of matches for
 # Showing causal attention with mask.
 let
 	dim, attn_dim = 3, 8
-	args = (aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false)
+	args = (aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false, size=(600,600))
 	
 	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
 	W_Q = randn(n_tokens, dim)
 	W_K = randn(n_tokens, dim)
 	W_V = randn(dim, dim)
 
-	p1 = heatmap(X, title="Input Tokens X"; args...)
-	p2 = heatmap(W_Q, title="W_q"; args...)
-	p3 = heatmap(W_K, title="W_k"; args...)
-	p4 = heatmap(W_V, title="X W_v"; args...)
+	p1 = heatmap(X, title="input tokens T"; args..., ylabel="sequence dim", xlabel="feature dim")
+	p2 = heatmap(W_Q, title=L"W_q"; args...)
+	p3 = heatmap(W_K, title=L"W_k"; args...)
+	p4 = heatmap(W_V, title=L"X W_v"; args...)
 
 	Q = X * transpose(W_Q)
 	K = X * transpose(W_K)
 	V = X * transpose(W_V)
 	
-	p5 = heatmap(Q, title="Q = X W_q"; args...)
-	p6 = heatmap(K, title="K = X W_k"; args...)
-	p7 = heatmap(V, title="V = X W_v"; args...)
+	p5 = heatmap(Q, title=L"Q = T W_q^\intercal"; args...)
+	p6 = heatmap(K, title=L"K = T W_k^\intercal"; args...)
+	p7 = heatmap(V, title=L"V = T W_v^\intercal"; args...)
 	
 	scores = Q * transpose(K) / sqrt(attn_dim) # n_tokens x n_tokens
 	@assert size(scores) == (n_tokens, n_tokens)
@@ -230,7 +227,7 @@ let
 
 	mask = UpperTriangular(ones(n_tokens, n_tokens))
 	
-	p9 = heatmap(mask, title="mask"; args...)
+	p9 = heatmap(mask, title="causal mask"; args...)
 	
 	masked_scores = scores .* mask .+ (1 .- mask) 
 	
@@ -242,16 +239,16 @@ let
 
 	attn_output = alpha * V
 	
-	p12 = heatmap(attn_output, title="output"; args...)
+	p12 = heatmap(attn_output, title="output tokens"; args...)
 
 	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12]..., layout=(3,4))
 end
 
 # ╔═╡ 1c2692a1-e8a0-4926-ad42-3787671eeb51
 md"""
-In expanded detail, here are the full mechanics of a self-attention layer:
+In expanded detail, here are the full mechanics of a self-attention layer, which is the kind of attention layer used in transformers. 
 
-![Self-Attention Layer]()
+![Self-Attention Layer](https://github.com/qsimeon/julia_class_project/blob/main/self_attention_layer.jpg?raw=true)
 """
 
 # ╔═╡ 74eb85f0-ea48-48cd-b732-4d97f4883c85
@@ -832,6 +829,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MLDatasets = "eb30cadb-4394-5ae3-aed4-317e484a6458"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -841,6 +839,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 [compat]
 Enzyme = "~0.13.15"
 Images = "~0.26.1"
+LaTeXStrings = "~1.4.0"
 MLDatasets = "~0.7.18"
 Plots = "~1.40.8"
 PlutoUI = "~0.7.60"
@@ -852,7 +851,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.7"
 manifest_format = "2.0"
-project_hash = "5c73c9c76d86a3e6feea0926b1cbaa7f3163209a"
+project_hash = "17dac41d97f6c04c9526fe6c97b55854af66d139"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -3337,7 +3336,6 @@ version = "1.4.1+1"
 # ╠═ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
 # ╠═9adfff6a-e83e-4266-8bae-67f4a16e011f
 # ╠═5a498179-0be9-4e70-988f-14575d12a396
-# ╠═79d6d0eb-4fec-4ad5-a5b7-9718864b7cfd
 # ╠═c3eaadcf-a06d-4469-ba9a-399043e72a9f
 # ╠═245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
 # ╠═1c2692a1-e8a0-4926-ad42-3787671eeb51
