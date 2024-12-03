@@ -17,7 +17,7 @@ end
 # ╔═╡ 4cc97f4d-7a4c-487a-8684-1edd1bb963a5
 begin
 	using LinearAlgebra, Random
-	using Plots.PlotMeasures, PlutoUI, Images
+	using Plots, Plots.PlotMeasures, PlutoUI, Images
 	using MLDatasets, Enzyme 
 end 
 
@@ -27,7 +27,7 @@ md"""
 
 The Transformer architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
 
-![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_arch.jpg?raw=true)
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/transformer_architecture.jpg?raw=true)
 
 There are many, _many_ great blogs on Trasnformers if you want to learn more:
 - https://blog.rush-nlp.com/the-annotated-transformer.html
@@ -44,7 +44,9 @@ Until recently, the best performing models for image classifications had been co
 
 # ╔═╡ 2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 md"""
-Let’s start by defining key components of a Vision Transformer (ViT) model using Julia structs and parametric types, similar to the structure we implemented in Homework 3. We will implement the `AttentionHead`, `MultiHeadedAttention`, and `FeedForwardNetwork` layers as Julia structs. This will set up the parts which get combined together in the `Transformer` model.
+Let’s start by defining key components of a Vision Transformer (ViT) model using Julia structs and parametric types, similar to the structure we implemented in Homework 3. 
+
+We will implement the `AttentionHead`, `MultiHeadedAttention`, and `FeedForwardNetwork` modules as Julia structs. This will set up the parts which get combined together in the `Transformer` model.
 """
 
 # ╔═╡ afe50e6c-9e61-4246-a8ac-bebc83e2715c
@@ -134,7 +136,7 @@ let
 	W_K = randn(n_tokens, dim)
 	W_V = randn(dim, dim)
 
-	p1 = heatmap(X, title="Input Tokens X", aspect_ratio=1, colorbar=false)
+	p1 = heatmap(X, title="Input Tokens X", aspect_ratio=1, colorbar=false, grid=false, yticks=false)
 	p2 = heatmap(W_Q, title="W_q", aspect_ratio=1, colorbar=false)
 	p3 = heatmap(W_K, title="W_k", aspect_ratio=1, colorbar=false)
 	p4 = heatmap(W_V, title="X W_v", aspect_ratio=1, colorbar=false)
