@@ -19,8 +19,51 @@ begin
 	using LinearAlgebra, Random, LaTeXStrings
 	using Plots, Plots.PlotMeasures, PlutoUI, Images
 	using MLDatasets, Enzyme ,  Statistics
-	using HTML5
 end 
+
+# ╔═╡ 6904ea81-b69a-4964-9342-e22d7ce4a168
+# function generate_cifar10_html_table(train_dataset, class_names; samples_per_class=5)
+#     using Base64
+
+#     html = """
+#     <table border="1" cellpadding="5" style="border-collapse: collapse; text-align: center;">
+#         <thead>
+#             <tr>
+#                 <th>Class</th>
+#     """
+#     # Add headers for the image samples
+#     for _ in 1:samples_per_class
+#         html *= "<th>Sample</th>"
+#     end
+#     html *= "</tr></thead><tbody>"
+
+#     for (i, class_name) in enumerate(class_names)
+#         html *= """
+#         <tr>
+#             <td style="padding: 5px; background-color: #f2f2f2;">$class_name</td>
+#         """
+#         # Find samples of this class
+#         sample_indices = findall(x -> x == i, train_dataset.targets)
+#         for j in 1:min(samples_per_class, length(sample_indices))
+#             img_idx = sample_indices[j]
+#             img = train_dataset.features[:, :, :, img_idx]
+#             img_rgb = colorview(RGB, permutedims(img, (3, 1, 2)))
+
+#             # Convert RGB image to PNG format
+#             io = IOBuffer()
+#             PNGFiles.save(io, img_rgb)  # Use PNGFiles package for saving to IOBuffer
+#             img_base64 = base64encode(String(take!(io)))
+
+#             # Embed the image in the table
+#             html *= "<td><img src=\"data:image/png;base64,$img_base64\" width=\"32\" height=\"32\" /></td>"
+#         end
+#         html *= "</tr>"
+#     end
+
+#     html *= "</tbody></table>"
+#     return Markdown.html(html)
+# end
+
 
 # ╔═╡ ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 md"""
@@ -1039,7 +1082,9 @@ CIFAR-10 is an image classification dataset:
 - Each data sample is an RGB $32 \times 32$ real image. A raw loaded image $\in \mathbb{R}^{3 \times 32 \times 32}$.
 - Each image is associated with a label $\in \{0, 1, 2, \dots, 9\}$.
 
-Our goal is to train a neural network classifier that takes such $3 \times 32 \times 32$ images and predicts a label.
+![CIFAR10 Table]
+
+Our goal is to train a neural network classifier (with a *ViT* as the feature extractor "backbone") that takes such $3 \times 32 \times 32$ images and predicts a label.
 """
 
 # ╔═╡ 58829bc1-d64c-4931-9589-86348b440885
@@ -1048,62 +1093,39 @@ begin
 	train_dataset = CIFAR10(dir="cifar/", split=:train)
 	# test_dataset = CIFAR10(dir="cifar/", split=:test)
 
-	subset_size = 1000  
-	train_subset = train_dataset.features[:, :, :, 1:subset_size]
-	train_labels = train_dataset.targets[1:subset_size]
-end
-
-# ╔═╡ b27a7977-7f64-41ce-82fa-c6effd52523c
-begin 
-	# Extract a single CIFAR-10 image and label
-    img_data = train_dataset.features[:, :, :, 1]  # Shape: 32x32x3 (HWC format)
-    img_data_permuted = permutedims(img_data, (3, 1, 2))  # CHW format for the VisionTransformer
-    rgb_image = colorview(RGB, img_data_permuted)
-    target_label = train_dataset.targets[1]  # Class label (1-based index)
-
-    # Display the CIFAR-10 image
-	rgb_image
-end
-
-# ╔═╡ a35969c9-521a-4bd3-9b27-9962c1f957a3
-
-
-# ╔═╡ 9dbddd55-a8bd-485a-b3fd-91eff70fc166
-function generate_cifar10_table(train_dataset, class_names)
-    # Prepare HTML table
-    table_html = HTML.table(border=1, cellpadding=5)
-
-    for i in 1:length(class_names)
-        row = HTML.tr()
-        # Add the class name as the first cell
-        push!(row, HTML.td(class_names[i]))
-        # Add example images for this class
-        for j in 1:10
-            # Find the first 10 images with the label `i`
-            img_idx = findfirst(x -> x == i, train_dataset.targets)
-            img = train_dataset.features[:, :, :, img_idx]
-            img_rgb = colorview(RGB, permutedims(img, (3, 1, 2)))
-            img_html = HTML.img(src=Images.save(IOBuffer(), img_rgb, MIME("image/png")))
-            push!(row, HTML.td(img_html))
-        end
-        push!(table_html, row)
-    end
-
-    return table_html
-end
-
-# ╔═╡ 3a4ffed8-57af-4ecd-b09c-64bb68bc909e
-begin
 	# Class names for CIFAR-10
 	cifar10_classes = [
 	    "airplane", "automobile", "bird", "cat", "deer",
 	    "dog", "frog", "horse", "ship", "truck"
 	]
 	
-	# Generate the table
-	cifar10_table = generate_cifar10_table(train_dataset, cifar10_classes)
-	cifar10_table
+	subset_size = 1000  
+	train_subset = train_dataset.features[:, :, :, 1:subset_size]
+	train_labels = train_dataset.targets[1:subset_size] .+ 1 # Class label (1-based index)
 end
+
+# ╔═╡ b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
+@bind img_idx Slider(1:subset_size, show_value=true, default=1)
+
+# ╔═╡ b27a7977-7f64-41ce-82fa-c6effd52523c
+begin 
+	# Extract a single CIFAR-10 image and label
+    img_data = train_subset[:, :, :, img_idx]  # Shape: 32x32x3 (HWC format)
+    img_data_permuted = permutedims(img_data, (3, 1, 2))  # CHW format for the VisionTransformer
+    rgb_image = colorview(RGB, img_data_permuted)
+    target_label = train_labels[img_idx]  
+
+    # Display the CIFAR-10 image
+	heatmap(rgb_image, title=cifar10_classes[target_label], grid=false, ticks=false)
+	
+end
+
+# ╔═╡ baf9963a-2217-4681-afad-646b71322e36
+# begin
+# 	# Generate the HTML table
+# 	cifar10_html_table = generate_cifar10_html_table(train_dataset, cifar10_classes)
+# 	cifar10_html_table
+# end
 
 # ╔═╡ 22689f54-30d2-41fc-89ca-5bf0f95e855d
 
@@ -1126,9 +1148,9 @@ Here:
 """
 
 # ╔═╡ c207fa17-ce49-4a9f-b338-1613a60275cc
-md"""
-## TODO: Add visual of cross-entropy loss.
-"""
+# md"""
+# ## TODO: Add visual of cross-entropy loss.
+# """
 
 # ╔═╡ 2a5da94c-dd22-450f-93b9-3e8298308488
 function cross_entropy_loss(predictions::Matrix{Float64}, targets::Vector{Int})
@@ -1147,13 +1169,13 @@ end
 
 # ╔═╡ b5669b02-7a62-4129-ad13-80a475c139cd
 md"""
-## We didn't get by to training the network :😞
+## We didn't get by to training the network 😞
 """
 
 # ╔═╡ 991500b0-5f55-4fa0-b796-88d8fa1ca568
 md"""
 # Futures steps:
-- Figure out how to train our ViT model using an autodiff package like Enzyme.jl
+- Figure out how to train our ViT model using an autodiff package like `Enzyme.jl`
 - Visualize actual real attention maps for that trained model.
 
 
@@ -1163,25 +1185,25 @@ Here's an example of what we would expect:
 
 In this project, our Vision Transformer (ViT) model is designed to process the CIFAR-10 dataset. Below is an example attention map visualization for the [CLS] token after training, highlighting which regions of the image the model focuses on during classification.
 
-![Attention Map Images](attention_map_image.png?raw=true)
+![Attention Map Images](https://github.com/qsimeon/julia_class_project/blob/main/trained_cifar_attn.png?raw=true)
 
 """
 
 # ╔═╡ a2418e79-b2a3-4310-ba6e-7b0af50264ff
-# Compute gradient for the VisionTransformer
-function compute_gradient(vit_model::VisionTransformer{T}, img::Matrix{<:RGB}, target::Int) where T<:Real
-    function loss_fn()
-        # Forward pass through the model
-        output, _ = vit_model(img)
-        # Compute the loss (batch size = 1)
-        y_pred = reshape(output, 1, :)  # Ensure output is a matrix
-        return cross_entropy_loss(y_pred, [target])
-    end
+# # Compute gradient for the VisionTransformer
+# function compute_gradient(vit_model::VisionTransformer{T}, img::Matrix{<:RGB}, target::Int) where T<:Real
+#     function loss_fn()
+#         # Forward pass through the model
+#         output, _ = vit_model(img)
+#         # Compute the loss (batch size = 1)
+#         y_pred = reshape(output, 1, :)  # Ensure output is a matrix
+#         return cross_entropy_loss(y_pred, [target])
+#     end
 
-    # Compute gradients of the loss function with respect to model parameters
-    grad = Enzyme.gradient(loss_fn, vit_model)
-    return grad
-end
+#     # Compute gradients of the loss function with respect to model parameters
+#     grad = Enzyme.gradient(loss_fn, vit_model)
+#     return grad
+# end
 
 # ╔═╡ e6f6f744-7179-4d45-94fa-de0b3bc303bf
 # # Test the VisionTransformer with gradient computation
@@ -3772,10 +3794,10 @@ version = "1.4.1+1"
 # ╠═2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # ╠═58829bc1-d64c-4931-9589-86348b440885
+# ╠═b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
 # ╠═b27a7977-7f64-41ce-82fa-c6effd52523c
-# ╠═a35969c9-521a-4bd3-9b27-9962c1f957a3
-# ╠═9dbddd55-a8bd-485a-b3fd-91eff70fc166
-# ╠═3a4ffed8-57af-4ecd-b09c-64bb68bc909e
+# ╠═6904ea81-b69a-4964-9342-e22d7ce4a168
+# ╠═baf9963a-2217-4681-afad-646b71322e36
 # ╠═22689f54-30d2-41fc-89ca-5bf0f95e855d
 # ╠═1831af2d-587f-40ed-80bc-dd96595aaccf
 # ╠═f708229e-d2a2-424c-91f0-3bffda23fe53
