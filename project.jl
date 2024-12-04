@@ -320,6 +320,7 @@ let
 	attn_alphas = permutedims(attn_alphas, (3, 1, 2)) # Shape: (num_heads, N, N)
 	attn_output = concatenated * transpose(W_msa) # Shape: (N, dim)
 
+	println("Test `MultiHeadedAttention` implementation")
 	println("attention output shape: ", size(attn_output))
 	println("attention weights shape: ", size(attn_alphas))
 	# plot the attention mask from the last head
@@ -384,6 +385,7 @@ let
     output = linear_layer(X)
 
     # Verify dimensions
+	println("Test `Linear` implementation")
     println("Input shape: ", size(X))        # Should be (n_tokens, in_features)
     println("Output shape: ", size(output))  # Should be (n_tokens, out_features)
 end
@@ -419,6 +421,7 @@ let
     ffn_output = ffn(X)
     
     # Verify output shape
+	println("Test `FeedForwardNetwork` implementation")
     println("Input shape: ", size(X))          # Should be (n_tokens, dim)
     println("Output shape: ", size(ffn_output)) # Should be (n_tokens, dim)
 end
@@ -516,6 +519,7 @@ let
 	residual_block = AttentionResidual{Float64}(dim, attn_dim, mlp_dim, num_heads)
 	X = randn(Float64, n_tokens, dim)  # example input with n_tokens, each of `dim` dimensions
 	output, alphas = residual_block(X)
+	println("Test `AttentionResidual` implementation")
 	println("AttentionResidual output shape: ", size(output))
 	println("Attention weights shape (from one layer): ", size(alphas))
 end
@@ -527,6 +531,7 @@ let
 	transformer = Transformer{Float64}(dim, attn_dim, mlp_dim, num_heads, num_layers)
 	X = randn(Float64, n_tokens, dim)  # example input with n_tokens, each of `dim` dimensions
 	output, collected_alphas = transformer(X; return_attn=true)
+	println("Test `Transformer` implementation")
 	println("Transformer output shape: ", size(output))
 	println("Collected attention weights shape ($num_layers layers): ", [size(collected_alphas[i]) for i in 1:length(collected_alphas)])
 end
@@ -661,7 +666,7 @@ end
 
 # ╔═╡ b35b28dd-e992-49a0-8e01-abd3e26ad093
 # Create the slider with the patch size options
-@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[1])
+@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[3])
 
 # ╔═╡ 8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # Visualize patches for the chosen `patch_size`
@@ -760,7 +765,7 @@ You can embedded think of the embedded patches already as the tokens ``\mathbf{T
 
 ![Token Matrix](https://github.com/qsimeon/julia_class_project/blob/main/token_matrix_shape.jpg?raw=true)
 
-What we do next with **positional encoding**simply adds information about the position patch index, and so doesn't change the shape of the tokens.
+What we do next with **positional encoding** simply adds information about the position patch index, and so doesn't change the shape of the tokens.
 """
 
 # ╔═╡ cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
@@ -817,11 +822,10 @@ function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedd
     plot!(p2, border_shape, lw=3, color=:red, fillalpha=0.0, legend=false)
 
     # Combine the two plots
-    plot(p1, p2, layout=(1, 2), size=(1600, 800))
+    plot(p1, p2, layout=(1, 2), size=(1300, 800))
 end
 
 # ╔═╡ 61c64d4b-b04f-4643-8949-db7b79e2293e
-# Example Usage:
 let
     img_size = size(image_square, 1)  # Image size (assumes square image)
     nin = size(channelview(image_square), 1)  # Number of input channels (RGB)
@@ -831,9 +835,11 @@ let
 
     # Apply PatchEmbedLinear to the image
     embedded_patches = patch_embed(image_square)
-
+	
+	# Slider to choose which patch to highligh
+	middle_patch = div(size(embedded_patches, 1), 2)
+	
     # Visualize the process, highlighting the middle patch
-    middle_patch = div(size(embedded_patches, 1), 2)
     visualize_patch_embedding(image_square, patch_size, embedded_patches, middle_patch)
 end
 
@@ -880,7 +886,7 @@ end
 
 
 # ╔═╡ a87e64c5-e8f4-4e61-8c66-3fe4c22e5c1c
-# Test Embedding module
+# Test Embedding struct
 let
     num_embeddings = 100  # Number of patches
     embedding_dim = 64     # Embedding dimension
@@ -895,6 +901,7 @@ let
     embeddings = embedding(indices)
 
     # Verify output
+	println("Test `Embedding` struct")
     println("Indices: ", indices)
     println("Embedding shape: ", size(embeddings))  # Should be (length(indices), embedding_dim)
 end
@@ -943,6 +950,7 @@ let
     output = sequential(X)
 
     # Verify output shape
+	println("Test `Sequential` struct")
     println("Input shape: ", size(X))          # Should be (10, dim)
     println("Output shape: ", size(output))   # Should be (10, nout)
 end
@@ -1020,6 +1028,12 @@ struct VisionTransformer{T<:Real}
 end
 
 
+# ╔═╡ 5dfc2447-fbd2-4337-a0d4-36dcf38139c0
+begin
+	num_layers = 6
+	@bind attn_layer Slider(1:num_layers, default=1, show_value=true)
+end
+
 # ╔═╡ 2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # Test Vision Transformer implementation for single-image inputs
 let
@@ -1031,7 +1045,7 @@ let
     attn_dim = 128           # Attention hidden dimension
     mlp_dim = 256            # Feed-forward network hidden dimension
     num_heads = 4            # Number of attention heads
-    num_layers = 6           # Number of transformer layers
+    # num_layers = 6           # Number of transformer layers
     # nout = 10                # Number of output classes (e.g., for classification)
 
     # Initialize the Vision Transformer
@@ -1043,17 +1057,18 @@ let
     out, alphas = vt(image_square, return_attn=true)
 
     # Verify output dimensions
+	println("Test `VisionTransformer` struct")
     println("Output shape: ", size(out))  # Should be (nout,)
     println("Attention weights shape: ", size(alphas))  # Should be (num_layers, num_heads, N+1, N+1)
 
     # Visualize one attention map (optional)
     heatmap(
-        alphas[1][1, :, :],  # Visualize the attention weights for the first layer and first head
-        title="Attention Map",
+        alphas[attn_layer][1, :, :],  # Visualize the attention weights for the first layer and first head
+        title="Attention Map (layer $attn_layer)",
         xlabel="Token Index",
         ylabel="Token Index",
         c=:viridis,
-        clabel="Attention Weight (first layer)"
+        clabel="Attention Weight"
     )
 end
 
@@ -3776,50 +3791,51 @@ version = "1.4.1+1"
 # ╠═ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
 # ╠═9adfff6a-e83e-4266-8bae-67f4a16e011f
 # ╠═5a498179-0be9-4e70-988f-14575d12a396
-# ╠═c3eaadcf-a06d-4469-ba9a-399043e72a9f
-# ╠═245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
-# ╠═1c2692a1-e8a0-4926-ad42-3787671eeb51
+# ╟─c3eaadcf-a06d-4469-ba9a-399043e72a9f
+# ╟─245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
+# ╟─1c2692a1-e8a0-4926-ad42-3787671eeb51
 # ╠═74eb85f0-ea48-48cd-b732-4d97f4883c85
-# ╠═c8d32f75-83a3-40d7-b136-4bf5966612a0
-# ╠═e9ce397a-b315-470d-9534-cdd1dad12a1b
+# ╟─c8d32f75-83a3-40d7-b136-4bf5966612a0
+# ╟─e9ce397a-b315-470d-9534-cdd1dad12a1b
 # ╠═661d546e-4182-4199-9b2d-3c5eb90bc07f
-# ╠═03759beb-1ac3-4bd7-800b-f4461edb58b1
+# ╟─03759beb-1ac3-4bd7-800b-f4461edb58b1
 # ╠═c12ffac7-7533-42fa-a721-30938396e898
-# ╠═a7f306c1-12aa-4ecc-9764-70a72c41bd67
+# ╟─a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
 # ╠═97c1b967-b634-4ff0-8007-939bf8ea87fa
 # ╠═9bd646c3-ef9d-4b06-a598-267c0cbdff4a
-# ╠═e88482de-8685-47d7-9cbb-78328eed8244
-# ╠═da2f6c55-17c5-495c-8ba3-5b2dc50a17f1
-# ╠═fd2a796f-b683-4792-a976-b4071fda58a0
-# ╠═7eb8e4ec-80ae-4744-b21d-8b36885ff98c
-# ╠═90019339-1fdf-4541-b71b-a00b9ef7d904
+# ╟─e88482de-8685-47d7-9cbb-78328eed8244
+# ╟─da2f6c55-17c5-495c-8ba3-5b2dc50a17f1
+# ╟─fd2a796f-b683-4792-a976-b4071fda58a0
+# ╟─7eb8e4ec-80ae-4744-b21d-8b36885ff98c
+# ╟─90019339-1fdf-4541-b71b-a00b9ef7d904
 # ╠═db19fde5-434c-4030-9a61-0200ddca659f
-# ╠═a2bf29b4-174d-42e1-94b6-39822556349c
+# ╟─a2bf29b4-174d-42e1-94b6-39822556349c
 # ╟─ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
 # ╟─c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
 # ╟─9e705315-d646-4373-854d-47a9f9d9076b
 # ╟─5a0607bc-bf03-4b19-894f-1bcfd68a0762
 # ╠═b35b28dd-e992-49a0-8e01-abd3e26ad093
 # ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
-# ╠═44f39ba0-68e6-450d-a7fa-99f180a48b67
-# ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
+# ╟─44f39ba0-68e6-450d-a7fa-99f180a48b67
+# ╟─a2ff04a3-4118-47b8-b768-fc2a4986167b
 # ╠═9d6cd065-5f25-4943-b155-3602db474bff
-# ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
-# ╠═331f8b02-dafa-4d29-84bc-4238f227c9a8
-# ╠═cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
+# ╟─02fb8ff3-647e-4d55-8c2b-a1d9066338ed
+# ╟─331f8b02-dafa-4d29-84bc-4238f227c9a8
+# ╟─cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
 # ╟─61c64d4b-b04f-4643-8949-db7b79e2293e
-# ╠═8e813069-1265-4469-980d-e1450d6ae173
-# ╠═a6fc3703-585d-453f-a30a-25d080ab053d
+# ╟─8e813069-1265-4469-980d-e1450d6ae173
+# ╟─a6fc3703-585d-453f-a30a-25d080ab053d
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
-# ╠═a87e64c5-e8f4-4e61-8c66-3fe4c22e5c1c
-# ╠═8c355943-964f-4db0-a1ec-dd160b282583
+# ╟─a87e64c5-e8f4-4e61-8c66-3fe4c22e5c1c
+# ╟─8c355943-964f-4db0-a1ec-dd160b282583
 # ╠═867dae62-6570-4131-8713-7867196a8736
-# ╠═c3fce17e-06eb-4982-bcef-86b8c53f78ef
+# ╟─c3fce17e-06eb-4982-bcef-86b8c53f78ef
 # ╠═307db93b-20f3-4dd1-9dd7-e05780592245
 # ╠═6e615061-9600-4a98-8c15-c30110dde0ee
-# ╠═e32c2cb0-2862-4f7a-9470-61ea5544202e
-# ╠═2f5badaf-4342-42ec-8240-c5c642c1fa8f
+# ╟─e32c2cb0-2862-4f7a-9470-61ea5544202e
+# ╟─5dfc2447-fbd2-4337-a0d4-36dcf38139c0
+# ╟─2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # ╠═58829bc1-d64c-4931-9589-86348b440885
 # ╠═b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
