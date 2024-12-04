@@ -52,7 +52,7 @@ Token nets are just like neural nets, alternating between layers that mix nodes 
 md"""
 Until recently, the best performing models for image classification had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
 
-![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_arch.jpg?raw=true)
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_architecture.jpg?raw=true)
 """
 
 # ╔═╡ 2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
@@ -643,7 +643,7 @@ end
 
 
 # ╔═╡ 9d6cd065-5f25-4943-b155-3602db474bff
-@bind nout Slider([16:16:128...], show_value=true, default=32)
+@bind nout Slider([16:16:96...], show_value=true, default=32)
 
 # ╔═╡ 02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # Test `PatchEmbedLinear` implementation for RGB images
@@ -3430,7 +3430,7 @@ version = "1.4.1+1"
 # ╠═4cc97f4d-7a4c-487a-8684-1edd1bb963a5
 # ╠═ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 # ╠═970f0e2b-459b-4baa-ae30-886c2bada7b4
-# ╟─191c435c-4094-4326-9e18-0ee8dc3058ab
+# ╠═191c435c-4094-4326-9e18-0ee8dc3058ab
 # ╠═2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 # ╠═afe50e6c-9e61-4246-a8ac-bebc83e2715c
 # ╟─ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
