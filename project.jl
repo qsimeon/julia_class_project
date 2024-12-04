@@ -19,6 +19,7 @@ begin
 	using LinearAlgebra, Random, LaTeXStrings
 	using Plots, Plots.PlotMeasures, PlutoUI, Images
 	using MLDatasets, Enzyme ,  Statistics
+	using HTML5
 end 
 
 # ╔═╡ ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
@@ -754,11 +755,9 @@ end
 
 # ╔═╡ 331f8b02-dafa-4d29-84bc-4238f227c9a8
 md"""
-You can embedded think of the embedded patches already as the tokens ``\mathbf{T}`` that will be fed into our ViT model.
+You can embedded think of the embedded patches already as the tokens ``\mathbf{T}`` that will be fed into our ViT model. Recall graphically, ``\mathbf{T}`` is constructed from ``\mathbf{t}_1, \dots t_N`` like this
 
-Recall graphically, ``\mathbf{T}`` is constructed from ``\mathbf{t}_1, \dots t_N`` like this
-
-![Token Matrix]()
+![Token Matrix](https://github.com/qsimeon/julia_class_project/blob/main/token_matrix_shape.jpg?raw=true)
 
 What we do next with **positional encoding**simply adds information about the position patch index, and so doesn't change the shape of the tokens.
 """
@@ -1034,10 +1033,16 @@ end
 
 # ╔═╡ 33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 md"""
-## Loading an image dataset (`CIFAR10`)
+## Loading an Image Dataset (`CIFAR10`)
+
+CIFAR-10 is an image classification dataset:
+- Each data sample is an RGB $32 \times 32$ real image. A raw loaded image $\in \mathbb{R}^{3 \times 32 \times 32}$.
+- Each image is associated with a label $\in \{0, 1, 2, \dots, 9\}$.
+
+Our goal is to train a neural network classifier that takes such $3 \times 32 \times 32$ images and predicts a label.
 """
 
-# ╔═╡ 22689f54-30d2-41fc-89ca-5bf0f95e855d
+# ╔═╡ 58829bc1-d64c-4931-9589-86348b440885
 begin
 	# Load CIFAR-10 training data
 	train_dataset = CIFAR10(dir="cifar/", split=:train)
@@ -1048,7 +1053,7 @@ begin
 	train_labels = train_dataset.targets[1:subset_size]
 end
 
-# ╔═╡ 1831af2d-587f-40ed-80bc-dd96595aaccf
+# ╔═╡ b27a7977-7f64-41ce-82fa-c6effd52523c
 begin 
 	# Extract a single CIFAR-10 image and label
     img_data = train_dataset.features[:, :, :, 1]  # Shape: 32x32x3 (HWC format)
@@ -1059,6 +1064,52 @@ begin
     # Display the CIFAR-10 image
 	rgb_image
 end
+
+# ╔═╡ a35969c9-521a-4bd3-9b27-9962c1f957a3
+
+
+# ╔═╡ 9dbddd55-a8bd-485a-b3fd-91eff70fc166
+function generate_cifar10_table(train_dataset, class_names)
+    # Prepare HTML table
+    table_html = HTML.table(border=1, cellpadding=5)
+
+    for i in 1:length(class_names)
+        row = HTML.tr()
+        # Add the class name as the first cell
+        push!(row, HTML.td(class_names[i]))
+        # Add example images for this class
+        for j in 1:10
+            # Find the first 10 images with the label `i`
+            img_idx = findfirst(x -> x == i, train_dataset.targets)
+            img = train_dataset.features[:, :, :, img_idx]
+            img_rgb = colorview(RGB, permutedims(img, (3, 1, 2)))
+            img_html = HTML.img(src=Images.save(IOBuffer(), img_rgb, MIME("image/png")))
+            push!(row, HTML.td(img_html))
+        end
+        push!(table_html, row)
+    end
+
+    return table_html
+end
+
+# ╔═╡ 3a4ffed8-57af-4ecd-b09c-64bb68bc909e
+begin
+	# Class names for CIFAR-10
+	cifar10_classes = [
+	    "airplane", "automobile", "bird", "cat", "deer",
+	    "dog", "frog", "horse", "ship", "truck"
+	]
+	
+	# Generate the table
+	cifar10_table = generate_cifar10_table(train_dataset, cifar10_classes)
+	cifar10_table
+end
+
+# ╔═╡ 22689f54-30d2-41fc-89ca-5bf0f95e855d
+
+
+# ╔═╡ 1831af2d-587f-40ed-80bc-dd96595aaccf
+
 
 # ╔═╡ f708229e-d2a2-424c-91f0-3bffda23fe53
 md"""
@@ -1072,6 +1123,11 @@ We will define the cross-entropy loss function. For multi-class classification w
 Here:
 - ``y_c`` is 1 if the sample belongs to class $c$, otherwise 0.
 - ``\hat{y}_c`` is the predicted probability for class $c$.
+"""
+
+# ╔═╡ c207fa17-ce49-4a9f-b338-1613a60275cc
+md"""
+## TODO: Add visual of cross-entropy loss.
 """
 
 # ╔═╡ 2a5da94c-dd22-450f-93b9-3e8298308488
@@ -1088,6 +1144,28 @@ function cross_entropy_loss(predictions::Matrix{Float64}, targets::Vector{Int})
 	loss = -sum(one_hot_targets .* log_probs) / num_samples
     return loss
 end
+
+# ╔═╡ b5669b02-7a62-4129-ad13-80a475c139cd
+md"""
+## We didn't get by to training the network :😞
+"""
+
+# ╔═╡ 991500b0-5f55-4fa0-b796-88d8fa1ca568
+md"""
+# Futures steps:
+- Figure out how to train our ViT model using an autodiff package like Enzyme.jl
+- Visualize actual real attention maps for that trained model.
+
+
+Here's an example of what we would expect:
+
+### Visualizing Attention Maps
+
+In this project, our Vision Transformer (ViT) model is designed to process the CIFAR-10 dataset. Below is an example attention map visualization for the [CLS] token after training, highlighting which regions of the image the model focuses on during classification.
+
+![Attention Map Images](attention_map_image.png?raw=true)
+
+"""
 
 # ╔═╡ a2418e79-b2a3-4310-ba6e-7b0af50264ff
 # Compute gradient for the VisionTransformer
@@ -1106,29 +1184,29 @@ function compute_gradient(vit_model::VisionTransformer{T}, img::Matrix{<:RGB}, t
 end
 
 # ╔═╡ e6f6f744-7179-4d45-94fa-de0b3bc303bf
-# Test the VisionTransformer with gradient computation
-let
-    # Initialize the Vision Transformer
-    img_size = 32          # CIFAR-10 image size
-    patch_size = 4         # Patch size
-    n_channels = 3         # Number of input channels (RGB)
-    dim = 64               # Embedding dimension
-    attn_dim = 128         # Attention hidden dimension
-    mlp_dim = 256          # Feed-forward network hidden dimension
-    num_heads = 4          # Number of attention heads
-    num_layers = 6         # Number of transformer layers
-    nout = 10              # Number of output classes (CIFAR-10 has 10 classes)
+# # Test the VisionTransformer with gradient computation
+# let
+#     # Initialize the Vision Transformer
+#     img_size = 32          # CIFAR-10 image size
+#     patch_size = 4         # Patch size
+#     n_channels = 3         # Number of input channels (RGB)
+#     dim = 64               # Embedding dimension
+#     attn_dim = 128         # Attention hidden dimension
+#     mlp_dim = 256          # Feed-forward network hidden dimension
+#     num_heads = 4          # Number of attention heads
+#     num_layers = 6         # Number of transformer layers
+#     nout = 10              # Number of output classes (CIFAR-10 has 10 classes)
 
-    vit_model = VisionTransformer{Float64}(
-        n_channels, nout, img_size, patch_size, dim, attn_dim, mlp_dim, num_heads, num_layers
-    )
+#     vit_model = VisionTransformer{Float64}(
+#         n_channels, nout, img_size, patch_size, dim, attn_dim, mlp_dim, num_heads, num_layers
+#     )
 
-    # Compute gradients
-    grad = compute_gradient(vit_model, img_data_permuted, target_label)
+#     # Compute gradients
+#     grad = compute_gradient(vit_model, img_data_permuted, target_label)
 
-    # Print gradient details
-    println("Gradient: ", grad)
-end
+#     # Print gradient details
+#     println("Gradient: ", grad)
+# end
 
 
 # ╔═╡ 9cf11cbd-4e1e-4a01-be53-212b53a7bc25
@@ -3693,10 +3771,18 @@ version = "1.4.1+1"
 # ╠═e32c2cb0-2862-4f7a-9470-61ea5544202e
 # ╠═2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
+# ╠═58829bc1-d64c-4931-9589-86348b440885
+# ╠═b27a7977-7f64-41ce-82fa-c6effd52523c
+# ╠═a35969c9-521a-4bd3-9b27-9962c1f957a3
+# ╠═9dbddd55-a8bd-485a-b3fd-91eff70fc166
+# ╠═3a4ffed8-57af-4ecd-b09c-64bb68bc909e
 # ╠═22689f54-30d2-41fc-89ca-5bf0f95e855d
 # ╠═1831af2d-587f-40ed-80bc-dd96595aaccf
 # ╠═f708229e-d2a2-424c-91f0-3bffda23fe53
+# ╠═c207fa17-ce49-4a9f-b338-1613a60275cc
 # ╠═2a5da94c-dd22-450f-93b9-3e8298308488
+# ╠═b5669b02-7a62-4129-ad13-80a475c139cd
+# ╠═991500b0-5f55-4fa0-b796-88d8fa1ca568
 # ╠═a2418e79-b2a3-4310-ba6e-7b0af50264ff
 # ╠═e6f6f744-7179-4d45-94fa-de0b3bc303bf
 # ╠═9cf11cbd-4e1e-4a01-be53-212b53a7bc25
