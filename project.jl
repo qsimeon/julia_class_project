@@ -18,12 +18,12 @@ end
 begin
 	using LinearAlgebra, Random, LaTeXStrings
 	using Plots, Plots.PlotMeasures, PlutoUI, Images
-	using MLDatasets, Enzyme 
+	using MLDatasets, Enzyme ,  Statistics
 end 
 
 # ╔═╡ ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 md"""
-### Our project is to implement a simple Vision Transformer (ViT) in Julia!
+# Implementing a Vision Transformer (ViT) in Julia!
 
 The Transformer architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
 
@@ -47,12 +47,13 @@ Token nets are just like neural nets, alternating between layers that mix nodes 
 ---
 """
 
-
 # ╔═╡ 191c435c-4094-4326-9e18-0ee8dc3058ab
 md"""
 Until recently, the best performing models for image classification had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
 
-![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_architecture.jpg?raw=true)
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/vit_architecture.jpg?raw=true)
+
+---
 """
 
 # ╔═╡ 2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
@@ -83,7 +84,7 @@ struct AttentionHead{T<:Real}
         return new{T}(randn(T, n_hidden, dim), randn(T, n_hidden, dim), randn(T, dim, dim), n_hidden)
     end
 
-    function (head::AttentionHead{T})(X::Matrix{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
+    function (head::AttentionHead{T})(X::Array{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
 		# X is expected to be an input token matrix with shape (N, dim)
         # Project input tokens to query, key, and value representations
         Q = X * transpose(head.W_Q)  # Shape: (N, n_hidden)
@@ -179,7 +180,6 @@ To compute the query, key, and value for a set of input tokens, $\mathbf{T}_{\te
 \end{aligned}
 ```
 
-
 > Note that the query and key vectors must have the same dimensionality, $m$, because we take a dot product between them. Conversely, the value vectors must match the dimensionality of the token code vectors, $d$, because these are summed up to produce the new token code vectors.
 
 Finally, we have the attention equation:
@@ -195,7 +195,7 @@ where the softmax is taken within each row (i.e., over the vector of matches for
 """
 
 # ╔═╡ 245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
-# Showing causal attention with mask.
+# Showing causal attention with mask
 let
 	dim, attn_dim = 3, 8
 	args = (aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false, size=(650,650))
@@ -263,7 +263,7 @@ struct MultiHeadedAttention{T<:Real}
         return new{T}(heads, W_msa)
     end
 
-    function (mha::MultiHeadedAttention{T})(X::Matrix{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
+    function (mha::MultiHeadedAttention{T})(X::Array{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
         outputs, alphas = [], []
         for head in mha.heads
             out, alpha = head(X, attn_mask) # Shapes: (N, dim), (N, N) 
@@ -326,41 +326,86 @@ let
     im = load(imf)
 end
 
-# ╔═╡ c12ffac7-7533-42fa-a721-30938396e898
+# ╔═╡ 661d546e-4182-4199-9b2d-3c5eb90bc07f
 ### 3. Feed-Forward Network (FFN)
-struct FeedForwardNetwork{T<:Real}
-    W1::Matrix{T} # Shape: (n_hidden, dim)
-    W2::Matrix{T} # Shape: (dim, n_hidden)
-    b1::Vector{T} # Shape: (n_hidden,)
-    b2::Vector{T} # Shape: (dim,)
+struct Linear{T<:Real}
+    W::Matrix{T}  # Weight matrix
+    b::Vector{T}  # Bias vector
 
-    function FeedForwardNetwork{T}(dim::Int, n_hidden::Int) where T<:Real
-		# Our FFN outputs tokens with the same dimension as the input tokens
-        return new{T}(randn(T, n_hidden, dim), randn(T, dim, n_hidden), randn(T, n_hidden), randn(T, dim))
+    # Constructor: Initialize weights and biases
+    function Linear{T}(in_features::Int, out_features::Int) where T<:Real
+        W = randn(T, out_features, in_features) / sqrt(in_features)  # Xavier initialization
+        b = zeros(T, out_features)
+        return new{T}(W, b)
     end
 
-    function (ffn::FeedForwardNetwork{T})(X::Matrix{T}) where {T<:Real}
-        # X is expected to be an input token matrix with shape (N, dim)
-        X = X * transpose(ffn.W1) .+ ffn.b1'  # Shape: (N, n_hidden)
-        X = max.(0, X)  # ReLU activation
-        return X * transpose(ffn.W2) .+ ffn.b2'  # Shape: (N, dim)
+    # Apply the linear transformation
+    function (linear::Linear{T})(X::Array{T}) where T<:Real
+        @assert size(X, 2) == size(linear.W, 2) "Input dimension must match the weight matrix"
+        return X * transpose(linear.W) .+ linear.b'
     end
 end
 
+# ╔═╡ 03759beb-1ac3-4bd7-800b-f4461edb58b1
+# Test `Linear` implementation
+let
+    in_features = 64   # Input dimension
+    out_features = 10  # Output dimension
+
+    # Initialize the Linear module
+    linear_layer = Linear{Float64}(in_features, out_features)
+
+    # Example input matrix (T, in_features), where T is the number of tokens
+    n_tokens = 20  # Number of tokens
+    X = randn(Float64, n_tokens, in_features)
+
+    # Apply the linear transformation
+    output = linear_layer(X)
+
+    # Verify dimensions
+    println("Input shape: ", size(X))        # Should be (n_tokens, in_features)
+    println("Output shape: ", size(output))  # Should be (n_tokens, out_features)
+end
+
+# ╔═╡ c12ffac7-7533-42fa-a721-30938396e898
+### 4. Feed-Forward Network (FFN)
+struct FeedForwardNetwork{T<:Real}
+    layer1::Linear{T}  # First linear transformation
+    layer2::Linear{T}  # Second linear transformation
+
+    function FeedForwardNetwork{T}(dim::Int, n_hidden::Int) where T<:Real
+        # Initialize the two linear layers
+        layer1 = Linear{T}(dim, n_hidden)  # Shape: (n_hidden, dim)
+        layer2 = Linear{T}(n_hidden, dim)  # Shape: (dim, n_hidden)
+        return new{T}(layer1, layer2)
+    end
+
+    function (ffn::FeedForwardNetwork{T})(X::Array{T}) where {T<:Real}
+        # Apply the first linear transformation
+        X = ffn.layer1(X)  # Shape: (N, n_hidden)
+        X = max.(0, X)     # ReLU activation
+        # Apply the second linear transformation
+        return ffn.layer2(X)  # Shape: (N, dim)
+    end
+end
 
 # ╔═╡ a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # Test `FeedForwardNetwork` implementation
 let
-	dim, mlp_dim = 3, 8
-	ffn = FeedForwardNetwork{Float64}(dim, mlp_dim)
-	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
-	ffn_output = ffn(X)
-	println("feedforward output shape: ", size(ffn_output))
+    dim, mlp_dim = 3, 8
+    ffn = FeedForwardNetwork{Float64}(dim, mlp_dim)
+    X = randn(Float64, n_tokens, dim)  # Example input with n_tokens tokens of dim-dimensional vectors
+    ffn_output = ffn(X)
+    
+    # Verify output shape
+    println("Input shape: ", size(X))          # Should be (n_tokens, dim)
+    println("Output shape: ", size(ffn_output)) # Should be (n_tokens, dim)
 end
+
 
 # ╔═╡ 2f40b3cf-e690-40be-8e5c-b66e022c505d
 md"""
-### Recap so far
+## Recap so far
 
 1. **`AttentionHead` Implementation**:
     - Projects the input token matrix `X` (shape: $$(N, \text{dim})$$) to query, key, and value matrices.
@@ -380,7 +425,7 @@ md"""
 
 
 # ╔═╡ 97c1b967-b634-4ff0-8007-939bf8ea87fa
-### 4. Attention Residual
+### 5. Attention Residual
 struct AttentionResidual{T<:Real}
 	attn::MultiHeadedAttention{T}  # Multi-headed attention mechanism
 	ffn::FeedForwardNetwork{T}      # Feed-forward network
@@ -393,7 +438,7 @@ struct AttentionResidual{T<:Real}
 	end
 
 	# Apply the AttentionResidual block to input x
-	function (residual::AttentionResidual{T})(X::Matrix{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
+	function (residual::AttentionResidual{T})(X::Array{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
 		# Apply the multi-headed attention layer
 		attn_out, alphas = residual.attn(X, attn_mask)  # attn_out: (N, dim), alphas: (num_heads, N, N)
 		# First residual connection with attention output
@@ -407,32 +452,38 @@ end
 
 
 # ╔═╡ 9bd646c3-ef9d-4b06-a598-267c0cbdff4a
-### 5. Transformer
+### 6. Transformer
 struct Transformer{T<:Real}
     layers::Vector{AttentionResidual{T}}  # Sequence of AttentionResidual blocks
 
-	# Constructor: initializes a sequence of attention residual blocks
+    # Constructor: initializes a sequence of attention residual blocks
     function Transformer{T}(dim::Int, attn_dim::Int, mlp_dim::Int, num_heads::Int, num_layers::Int) where T<:Real
         layers = [AttentionResidual{T}(dim, attn_dim, mlp_dim, num_heads) for _ in 1:num_layers]
         return new{T}(layers)
     end
 
-	# Apply the Transformer model to input X
-    function (transformer::Transformer{T})(X::Matrix{T}, attn_mask::Union{Nothing, Matrix{T}}=nothing) where {T<:Real}
+    # Apply the Transformer model to input X
+    function (transformer::Transformer{T})(X::Array{T}; attn_mask::Union{Nothing, Matrix{T}}=nothing, return_attn::Bool=false) where T<:Real
         collected_alphas = []  # To store attention weights from each layer
         for layer in transformer.layers
             X, alphas = layer(X, attn_mask)  # Apply each residual block
-            push!(collected_alphas, alphas)  # Collect attention weights
+            if return_attn
+                push!(collected_alphas, alphas)  # Collect attention weights
+            end
         end
-		# Return the final output and collected attention weights from all layers
-        return X, collected_alphas
+        # Return the final output and collected attention weights from all layers (if required)
+        if return_attn
+            return X, collected_alphas
+        else
+            return X, nothing
+        end
     end
 end
 
 
 # ╔═╡ e88482de-8685-47d7-9cbb-78328eed8244
 md"""
-### Testing the `AttentionResidual` and `Transformer`
+## Testing the `AttentionResidual` and `Transformer`
 
 Let's test the `AttentionResidual` and `Transformer` structs to confirm that they work as expected with the previously implemented components.
 """
@@ -454,14 +505,14 @@ let
 	dim, attn_dim, mlp_dim, num_heads, num_layers = 8, 16, 32, 3, 6
 	transformer = Transformer{Float64}(dim, attn_dim, mlp_dim, num_heads, num_layers)
 	X = randn(Float64, n_tokens, dim)  # example input with n_tokens, each of `dim` dimensions
-	output, collected_alphas = transformer(X)
+	output, collected_alphas = transformer(X; return_attn=true)
 	println("Transformer output shape: ", size(output))
 	println("Collected attention weights shape ($num_layers layers): ", [size(collected_alphas[i]) for i in 1:length(collected_alphas)])
 end
 
 # ╔═╡ 7eb8e4ec-80ae-4744-b21d-8b36885ff98c
 md"""
-#### Our modules so far build up the Transfomer
+## Our modules so far build up the Transfomer
 
 - **AttentionHead**: Implements a single attention head, creating query, key, and value projections, computing the attention scores, and applying a softmax.
 - **MultiHeadedAttention**: Combines multiple `AttentionHead`s, concatenates their outputs, and applies a final linear transformation.
@@ -483,6 +534,7 @@ __Show side-by-side comparison:__
 ![AttentionHead PyJl](https://github.com/qsimeon/julia_class_project/blob/main/attention_python_julia.jpg?raw=true)
 
 ![Transformer PyJl](https://github.com/qsimeon/julia_class_project/blob/main/transformer_python_julia.jpg?raw=true)
+
 ---
 """
 
@@ -495,17 +547,21 @@ But recall that what we want is to make is a **Vision Transformer**. This requir
 ![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_position.jpg?raw=true)
 
 We will explore these in detail next.
+
+---
 """
 
 # ╔═╡ a2bf29b4-174d-42e1-94b6-39822556349c
 md"""
-### Patch Embedding
+## Patch Embedding
 
 It turns out the patch embedding can be implemented by applying a strided convolution. However, we will take the more direct and visualizable approach of chopping up an image into patches and linearly projecting the vector that is the flattened patch to the desired dimensionality. 
 
 Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
 
 ![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_tokenize.jpg?raw=true)
+
+---
 """
 
 # ╔═╡ ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
@@ -541,7 +597,6 @@ function visualize_patches(image_square, patch_size)
     end
     
     # Display the grid of patches with custom grid padding
-	# pyplot()
     plot(
         plot_list...,
         layout=(grid_dim, grid_dim),
@@ -549,7 +604,6 @@ function visualize_patches(image_square, patch_size)
         size=(900, 900),
     )
 end
-
 
 # ╔═╡ 9e705315-d646-4373-854d-47a9f9d9076b
 # Load and preprocess an example image
@@ -579,11 +633,12 @@ begin
 	
 	# Get the divisors of the image size
 	patch_size_options = divisors_of_half_image_size(img_size)
-	
-	# Create the slider with the patch size options
-	@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[1])
 end
 
+
+# ╔═╡ b35b28dd-e992-49a0-8e01-abd3e26ad093
+# Create the slider with the patch size options
+@bind patch_size Slider(patch_size_options, show_value=true, default=patch_size_options[1])
 
 # ╔═╡ 8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # Visualize patches for the chosen `patch_size`
@@ -591,11 +646,13 @@ visualize_patches(image_square, patch_size)
 
 # ╔═╡ 44f39ba0-68e6-450d-a7fa-99f180a48b67
 md"""
-A patch embedding layer is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector. Since we are working on RGB images (3 channels), we define a lienar projection for each channels
+A patch embedding layer is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector. Since we are working on RGB images (3 channels), we define a linear projection for each channel independently and then combine them.
+
+---
 """
 
 # ╔═╡ a2ff04a3-4118-47b8-b768-fc2a4986167b
-### 6. PatchEmbedLinear 
+### 7. PatchEmbedLinear 
 struct PatchEmbedLinear{T<:Real}
     img_size::Int
     patch_size::Int
@@ -664,7 +721,8 @@ let
     println("Embedded patches shape: ", size(embedded_patches))
 
     # Visualize the embedded patches (first few)
-    heatmap(embedded_patches[1:10, :],
+	npatch = min(10, size(embedded_patches, 1))
+    heatmap(embedded_patches[1:npatch, :],
         title="First 10 Embedded Patches",
         xlabel="Embedding Dimension",
         ylabel="Patch Index",
@@ -700,7 +758,7 @@ function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedd
                  ylabel="Patch Index", color=:viridis, size=(800, 800))
     
     # Combine the two plots
-    plot(p1, p2, layout=(1, 2), size=(1600, 800))
+    plot(p1, p2, layout=(1, 2), size=(1200, 800))
 end
 
 
@@ -723,7 +781,7 @@ end
 
 # ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
 md"""
-### Positional Encoding
+## Positional Encoding
 One reason why CNNs worked so well for image recognition is because they have an inductive bias for local structure. In a Trasnformer, every token can attend to every other token in the sequence. Because self-attention operation is permutation invariant, it is important to use proper positional encoding to provide order information to the model. The positional encoding $\mathbf{P} \in \mathbb{R}^{L \times d}$ has the same dimension as the input embedding, so it can be added on the input directly. 
 
 ---
@@ -732,14 +790,19 @@ The vanilla Transformer considered two types of encodings:
 - (1) _Sinusoidal positional encoding_: Each dimension of the positional encoding corresponds to a sinusoid of different wavelengths in different dimensions. 
 
 ![Sinusoidal Positional Encoding](https://github.com/qsimeon/julia_class_project/blob/main/sine_encoding.jpg?raw=True)
-- (2) _Learned positional encoding_: As its name suggests, assignes each element in a sequence with a learned column vector which encodes its absolute position
+- (2) _Learned positional encoding_: As its name suggests, assignes each element in a sequence with a learned column vector which encodes its absolute position.
 ---
 
 We will implement the latter (2) by implementing and `Embedding` module since it is straightforward and becuase embeddig layers are extremely useful and ubiquitous in deep learning code.
 """
 
+# ╔═╡ a6fc3703-585d-453f-a30a-25d080ab053d
+md"""
+---
+"""
+
 # ╔═╡ e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
-### 7. Embedding
+### 8. Embedding
 struct Embedding{T<:Real}
     emb::Matrix{T} # Shape: (num_embeddings, embedding_dim)
 
@@ -782,56 +845,82 @@ end
 md"""
 ## Almost there!
 
-We just need to define a few more layers that we need to put together the Vision Transformer.
+We just need to define a few more layers to put together the **ViT**.
+
+---
 """
 
 # ╔═╡ 867dae62-6570-4131-8713-7867196a8736
 struct Sequential{T<:Real}
-	# This is just an array of modules where each module  
-	# is applied to input sequentially to the input.
-	seq::Vector{T}
-	function Sequential{T}(seq::Vector{T}) where T<:Real
-		return new{T}(seq)
-	end
+    # This is an array of modules where each module is applied sequentially to the input.
+    seq::AbstractVector
 
-	function(sequential::Sequential{T})(x::Array{T}) where T<:Real 
-		for i = 1:length(sequential.seq)
-			x = sequential.seq[i](x)
-		end
-		return x
-	end
+    function Sequential{T}(seq::AbstractVector) where T<:Real
+        return new{T}(seq)
+    end
+
+    function (sequential::Sequential{T})(x::Array{T}) where T<:Real
+        for mod in sequential.seq
+            x = mod(x)
+        end
+        return x
+    end
+end
+
+# ╔═╡ c3fce17e-06eb-4982-bcef-86b8c53f78ef
+# Test `Sequential` implementation
+let
+    dim, mlp_dim, nout = 3, 8, 5
+    layer1 = Linear{Float64}(dim, mlp_dim)
+    layer2 = Linear{Float64}(mlp_dim, nout)
+
+    # Initialize `Sequential` with two layers
+    sequential = Sequential{Float64}([layer1, layer2])
+
+    # Create a sample input
+    X = randn(Float64, n_tokens, dim)  # Input with n_tokens tokens of dim-dimensional vectors
+
+    # Apply `Sequential`
+    output = sequential(X)
+
+    # Verify output shape
+    println("Input shape: ", size(X))          # Should be (10, dim)
+    println("Output shape: ", size(output))   # Should be (10, nout)
 end
 
 # ╔═╡ 307db93b-20f3-4dd1-9dd7-e05780592245
 struct LayerNorm{T<:Real}
-	dim::Int
-	function LayerNorm{T}(dim::Int) where T<:Real
-		return new{T}(dim)
-	end
-	
-	function(layernorm::LayerNorm{T})(x::Array{T}) where T<:Real 
-		return mapslices(x -> x / norm(x), x, dims=layernorm.dim)
-	end
+    dim::Int
+
+    function LayerNorm{T}(dim::Int) where T<:Real
+        return new{T}(dim)
+    end
+
+    function (layernorm::LayerNorm{T})(X::Array{T}) where T<:Real
+        mean_val = mean(X; dims=layernorm.dim)
+        std_val = std(X; dims=layernorm.dim)
+        return (X .- mean_val) ./ (std_val .+ eps(T))
+    end
 end
+
 
 # ╔═╡ 6e615061-9600-4a98-8c15-c30110dde0ee
 struct Parameter{T<:Real}
-	param::Vector{T}
+    param::Vector{T}
 
-	function Parameter{T}(dim::Int) where T<:Real
-		param = randn(dim)
-		return new{T}(param)
-	end
+    function Parameter{T}(dim::Int) where T<:Real
+        param = randn(T, dim)
+        return new{T}(param)
+    end
 end
 
 # ╔═╡ e32c2cb0-2862-4f7a-9470-61ea5544202e
-### Vision Transformer Implementation
 struct VisionTransformer{T<:Real}
     patch_embed::PatchEmbedLinear{T}          # Patch embedding layer
-    pos_E::Embedding{T}                      # Positional encoding
-    cls_token::Parameter{T}                  # Learned class embedding token
-    transformer::Transformer{T}              # Transformer encoder
-    head::Sequential{T}                      # Classification head
+    pos_E::Embedding{T}                       # Positional encoding
+    cls_token::Parameter{T}                   # Learned class embedding token
+    transformer::Transformer{T}               # Transformer encoder
+    head::Sequential{T}                       # Classification head
 
     function VisionTransformer{T}(
         n_channels::Int, nout::Int, img_size::Int, patch_size::Int, dim::Int,
@@ -842,29 +931,30 @@ struct VisionTransformer{T<:Real}
         pos_E = Embedding{T}((img_size ÷ patch_size)^2, dim)
         cls_token = Parameter{T}(dim)
         transformer = Transformer{T}(dim, attn_dim, mlp_dim, num_heads, num_layers)
-        head = Sequential{T}([LayerNorm{T}(dim), Linear{T}(dim, nout)])
+        head = Sequential{T}([LayerNorm{T}(dim), Linear{T}(dim, nout)])  # LayerNorm along embedding dim
 
         return new{T}(patch_embed, pos_E, cls_token, transformer, head)
     end
 
-    function (vt::VisionTransformer{T})(img::Matrix{<:RGB}, return_attn::Bool=false) where T<:Real
+    function (vt::VisionTransformer{T})(img::Matrix{<:RGB}; return_attn::Bool=false) where T<:Real
         # Generate patch embeddings
         embs = vt.patch_embed(img)  # Shape: (num_patches, dim)
 
         # Add positional encoding
-        B, T = size(embs, 1), size(embs, 2)  # Batch size and number of patches
-        pos_ids = repeat(collect(1:T)', B, 1)  # Shape: (B, T)
-        embs .+= vt.pos_E.emb[pos_ids, :]
+        N, D = size(embs)  # Number of patches (N) and embedding dimension (D)
+        pos_ids = collect(1:N)  # Generate positional indices
+        embs .+= vt.pos_E(pos_ids)  # Add positional encodings to embeddings
 
         # Add the class token
-        cls_token = repeat(vt.cls_token.param', B, 1)  # Shape: (B, dim)
-        x = vcat(cls_token, embs')'  # Shape: (B, T+1, dim)
+        cls_token = vt.cls_token.param  # Shape: (dim,)
+        x = vcat(cls_token', embs)  # Shape: (N+1, dim)
 
         # Apply the transformer
-        x, alphas = vt.transformer(x, attn_mask=nothing, return_attn=return_attn)
+        x, alphas = vt.transformer(x; attn_mask=nothing, return_attn=return_attn)
 
         # Pass through the classification head
-        out = vt.head(x[:, 1, :])  # Take the class token output
+        cls_token_out = reshape(x[1, :], 1, :)  # Reshape into a matrix for `Sequential`
+        out = vt.head(cls_token_out)[1, :]  # Final output as a vector
 
         return out, alphas
     end
@@ -872,19 +962,18 @@ end
 
 
 # ╔═╡ 2f5badaf-4342-42ec-8240-c5c642c1fa8f
-### Test the Vision Transformer Implementation
-
+# Test Vision Transformer implementation for single-image inputs
 let
     # Define hyperparameters
     img_size = 256           # Image size (assumes square image)
-    patch_size = 16          # Patch size
+    # patch_size = 16          # Patch size
     n_channels = 3           # Number of input channels (RGB)
     dim = 64                 # Embedding dimension
     attn_dim = 128           # Attention hidden dimension
     mlp_dim = 256            # Feed-forward network hidden dimension
     num_heads = 4            # Number of attention heads
     num_layers = 6           # Number of transformer layers
-    nout = 10                # Number of output classes (e.g., for classification)
+    # nout = 10                # Number of output classes (e.g., for classification)
 
     # Initialize the Vision Transformer
     vt = VisionTransformer{Float64}(
@@ -895,33 +984,121 @@ let
     out, alphas = vt(image_square, return_attn=true)
 
     # Verify output dimensions
-    println("Output shape: ", size(out))  # Should be (B, nout)
-    println("Attention weights shape: ", size(alphas))  # Should be (B, num_layers, num_heads, T+1, T+1)
+    println("Output shape: ", size(out))  # Should be (nout,)
+    println("Attention weights shape: ", size(alphas))  # Should be (num_layers, num_heads, N+1, N+1)
 
     # Visualize one attention map (optional)
     heatmap(
-        alphas[1, 1, :, :, :],
+        alphas[1][1, :, :],  # Visualize the attention weights for the first layer and first head
         title="Attention Map",
         xlabel="Token Index",
         ylabel="Token Index",
         c=:viridis,
-        clabel="Attention Weight"
+        clabel="Attention Weight (first layer)"
     )
 end
 
-# ╔═╡ 33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 
+# ╔═╡ 33a7fb9e-838d-4b5b-9310-5d92719d7eaf
+md"""
+## Loading an image dataset (`CIFAR10`)
+"""
 
 # ╔═╡ 22689f54-30d2-41fc-89ca-5bf0f95e855d
 begin
+	# Load CIFAR-10 training data
 	train_dataset = CIFAR10(dir="cifar/", split=:train)
 	# test_dataset = CIFAR10(dir="cifar/", split=:test)
+
+	subset_size = 1000  
+	train_subset = train_dataset.features[:, :, :, 1:subset_size]
+	train_labels = train_dataset.targets[1:subset_size]
 end
 
-# ╔═╡ 89d0ae2a-d00a-4fc2-b345-f13aed739fbc
+# ╔═╡ 1831af2d-587f-40ed-80bc-dd96595aaccf
+let 
+	# Extract a single CIFAR-10 image and label
+    img_data = train_dataset.features[:, :, :, 1]  # Shape: 32x32x3 (HWC format)
+    img_data_permuted = permutedims(img_data, (3, 1, 2))  # CHW format for the VisionTransformer
+    rgb_image = colorview(RGB, img_data_permuted)
+    target_label = train_dataset.targets[1]  # Class label (1-based index)
+
+    # Display the CIFAR-10 image
+	rgb_image
+end
+
+# ╔═╡ f708229e-d2a2-424c-91f0-3bffda23fe53
+md"""
+## Cross-Entropy Loss Function
+We will define the cross-entropy loss function. For multi-class classification with $C$ classes, the cross-entropy loss for a single sample is given by:
+
+```math
+\text { Loss }=-\sum_{c=1}^C y_c \log \left(\hat{y}_c\right)
+```
+
+Here:
+- ``y_c`` is 1 if the sample belongs to class $c$, otherwise 0.
+- ``\hat{y}_c`` is the predicted probability for class $c$.
+"""
+
+# ╔═╡ 2a5da94c-dd22-450f-93b9-3e8298308488
+function cross_entropy_loss(predictions::Matrix{Float64}, targets::Vector{Int})
+    # Convert targets to one-hot encoding
+    num_samples, num_classes = size(predictions)
+    one_hot_targets = zeros(Float64, num_samples, num_classes)
+    for i in 1:num_samples
+        one_hot_targets[i, targets[i]] = 1.0
+    end
+	# Compute log of softmax predictions
+    log_probs = log.(softmax(predictions, dims=2))
+    # Compute the loss
+	loss = -sum(one_hot_targets .* log_probs) / num_samples
+    return loss
+end
+
+# ╔═╡ a2418e79-b2a3-4310-ba6e-7b0af50264ff
+# Compute gradient for the VisionTransformer
+function compute_gradient(vit_model::VisionTransformer{T}, img::Matrix{<:RGB}, target::Int) where T<:Real
+    function loss_fn()
+        # Forward pass through the model
+        output, _ = vit_model(img)
+        # Compute the loss (batch size = 1)
+        y_pred = reshape(output, 1, :)  # Ensure output is a matrix
+        return cross_entropy_loss(y_pred, [target])
+    end
+
+    # Compute gradients of the loss function with respect to model parameters
+    grad = Enzyme.gradient(loss_fn, vit_model)
+    return grad
+end
+
+# ╔═╡ e6f6f744-7179-4d45-94fa-de0b3bc303bf
+# Test the VisionTransformer with gradient computation
+let
+    # Initialize the Vision Transformer
+    img_size = 32          # CIFAR-10 image size
+    patch_size = 4         # Patch size
+    n_channels = 3         # Number of input channels (RGB)
+    dim = 64               # Embedding dimension
+    attn_dim = 128         # Attention hidden dimension
+    mlp_dim = 256          # Feed-forward network hidden dimension
+    num_heads = 4          # Number of attention heads
+    num_layers = 6         # Number of transformer layers
+    nout = 10              # Number of output classes (CIFAR-10 has 10 classes)
+
+    vit_model = VisionTransformer{Float64}(
+        n_channels, nout, img_size, patch_size, dim, attn_dim, mlp_dim, num_heads, num_layers
+    )
+
+    # Compute gradients
+    grad = compute_gradient(vit_model, img_data_permuted, target_label)
+
+    # Print gradient details
+    println("Gradient: ", grad)
+end
 
 
-# ╔═╡ e349ae51-d7b1-4ef6-b973-64b13fec23fc
+# ╔═╡ 9cf11cbd-4e1e-4a01-be53-212b53a7bc25
 
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -935,6 +1112,7 @@ MLDatasets = "eb30cadb-4394-5ae3-aed4-317e484a6458"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 Enzyme = "~0.13.15"
@@ -951,7 +1129,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.7"
 manifest_format = "2.0"
-project_hash = "17dac41d97f6c04c9526fe6c97b55854af66d139"
+project_hash = "562abd6484a410dae866d25e998bc471fd15d3f6"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -3433,15 +3611,17 @@ version = "1.4.1+1"
 # ╠═191c435c-4094-4326-9e18-0ee8dc3058ab
 # ╠═2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 # ╠═afe50e6c-9e61-4246-a8ac-bebc83e2715c
-# ╟─ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
+# ╠═ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
 # ╠═9adfff6a-e83e-4266-8bae-67f4a16e011f
-# ╟─5a498179-0be9-4e70-988f-14575d12a396
-# ╟─c3eaadcf-a06d-4469-ba9a-399043e72a9f
+# ╠═5a498179-0be9-4e70-988f-14575d12a396
+# ╠═c3eaadcf-a06d-4469-ba9a-399043e72a9f
 # ╠═245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
 # ╠═1c2692a1-e8a0-4926-ad42-3787671eeb51
 # ╠═74eb85f0-ea48-48cd-b732-4d97f4883c85
 # ╠═c8d32f75-83a3-40d7-b136-4bf5966612a0
 # ╠═e9ce397a-b315-470d-9534-cdd1dad12a1b
+# ╠═661d546e-4182-4199-9b2d-3c5eb90bc07f
+# ╠═03759beb-1ac3-4bd7-800b-f4461edb58b1
 # ╠═c12ffac7-7533-42fa-a721-30938396e898
 # ╠═a7f306c1-12aa-4ecc-9764-70a72c41bd67
 # ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
@@ -3458,25 +3638,32 @@ version = "1.4.1+1"
 # ╠═c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
 # ╠═9e705315-d646-4373-854d-47a9f9d9076b
 # ╠═5a0607bc-bf03-4b19-894f-1bcfd68a0762
+# ╠═b35b28dd-e992-49a0-8e01-abd3e26ad093
 # ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # ╠═44f39ba0-68e6-450d-a7fa-99f180a48b67
 # ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
 # ╠═9d6cd065-5f25-4943-b155-3602db474bff
-# ╟─02fb8ff3-647e-4d55-8c2b-a1d9066338ed
-# ╟─ff7337df-dd2a-4688-9623-abac908491c5
+# ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
+# ╠═ff7337df-dd2a-4688-9623-abac908491c5
 # ╠═fa4a03f5-f52a-4fbb-bb51-4f7daca912ac
 # ╠═8e813069-1265-4469-980d-e1450d6ae173
+# ╠═a6fc3703-585d-453f-a30a-25d080ab053d
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
 # ╠═a87e64c5-e8f4-4e61-8c66-3fe4c22e5c1c
 # ╠═8c355943-964f-4db0-a1ec-dd160b282583
 # ╠═867dae62-6570-4131-8713-7867196a8736
+# ╠═c3fce17e-06eb-4982-bcef-86b8c53f78ef
 # ╠═307db93b-20f3-4dd1-9dd7-e05780592245
 # ╠═6e615061-9600-4a98-8c15-c30110dde0ee
 # ╠═e32c2cb0-2862-4f7a-9470-61ea5544202e
 # ╠═2f5badaf-4342-42ec-8240-c5c642c1fa8f
 # ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # ╠═22689f54-30d2-41fc-89ca-5bf0f95e855d
-# ╠═89d0ae2a-d00a-4fc2-b345-f13aed739fbc
-# ╠═e349ae51-d7b1-4ef6-b973-64b13fec23fc
+# ╠═1831af2d-587f-40ed-80bc-dd96595aaccf
+# ╠═f708229e-d2a2-424c-91f0-3bffda23fe53
+# ╠═2a5da94c-dd22-450f-93b9-3e8298308488
+# ╠═a2418e79-b2a3-4310-ba6e-7b0af50264ff
+# ╠═e6f6f744-7179-4d45-94fa-de0b3bc303bf
+# ╠═9cf11cbd-4e1e-4a01-be53-212b53a7bc25
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
