@@ -485,6 +485,11 @@ md"""
 Step between attention layers
 """
 
+# ╔═╡ e8ea67cb-e98a-44c4-bf29-aa9080a0eaba
+md"""
+![token net](https://github.com/qsimeon/julia_class_project/blob/a2a25d0ddf2da1dfa277a64da19890139f6744f6/token_net.jpg?raw=true)
+"""
+
 # ╔═╡ 592cd05d-ab70-40e4-b872-f8827c207422
 ### 3. Feed-Forward Network (FFN)
 struct FeedForwardNetwork{T<:Real}
@@ -3227,11 +3232,12 @@ version = "1.4.1+1"
 # ╠═86ae782d-aa7e-4990-b03e-6e3f48ce694f
 # ╟─e9f1d13e-c75e-4147-9c54-4c93e71b6c25
 # ╠═989508e8-fd93-4470-8caa-ecf5fc4c4d93
+# ╠═61479c5d-7a13-43cd-89d6-864abfd74f29
 # ╟─86f89130-8cc1-4669-8788-e1d423aa439c
 # ╠═10dc52b3-2383-44f8-8bbf-67a968c4fff8
 # ╠═f4e9a6a9-6646-4db3-9d34-c8d6e3ff9cf9
-# ╠═61479c5d-7a13-43cd-89d6-864abfd74f29
 # ╟─37831a4c-d244-4bbf-9841-0e52e345c013
+# ╟─e8ea67cb-e98a-44c4-bf29-aa9080a0eaba
 # ╠═592cd05d-ab70-40e4-b872-f8827c207422
 # ╠═a548682e-4847-40b9-86e7-ebdfd8e0b770
 # ╟─f9e99e8c-906e-4c00-8a38-f6d159f8bf6f
