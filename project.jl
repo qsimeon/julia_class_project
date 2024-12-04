@@ -38,14 +38,35 @@ The Transformer architecture, introduced in the paper _Attention Is All You Need
 # ╔═╡ 970f0e2b-459b-4baa-ae30-886c2bada7b4
 
 md"""
-One thing to keep in mind throughout this notebook is that Transformers operate on **tokens**. Conceptually, the transformer architecture may be thought of as a _token net_, which is abtraction or generalization of the more familiar _neural nets_.
+One thing to keep in mind throughout this notebook is that Transformers operate on **tokens**. 
+
+A sequence of tokens will be denoted by a matrix``\mathbf{T} \in \mathbb{R}^{N \times 1}``, in which each token in the sequence, ``\mathbf{t}_1, \ldots, \mathrm{t}_N``, is transposed to become a row of the matrix:
+
+```math
+\mathbf{T}=\left[\begin{array}{c}
+\mathbf{t}_1^{\top} \\
+\vdots \\
+\mathbf{t}_N^{\top}
+\end{array}\right]
+
+```
+---
+
+"""
+
+# ╔═╡ e19d9f6b-8be8-4283-81a5-e30cdd91c654
+md"""
+Conceptually, the transformer architecture may be thought of as a _token net_, which is abtraction or generalization of the more familiar _neural nets_.
 
 Token nets are just like neural nets, alternating between layers that mix nodes in linear combinations (e.g., fully connected linear layers, convolutional layers, etc.) and layers that apply a pointwise nonlinearity to each node (e.g., relus, per-token MLPs). 
 
 ![Token Nets](https://github.com/qsimeon/julia_class_project/blob/main/token_net.jpg?raw=True)
 
+The idea to keep in mind is that _tokens are to transformers as neurons are to neural nets_. 
+
 ---
 """
+
 
 # ╔═╡ 191c435c-4094-4326-9e18-0ee8dc3058ab
 md"""
@@ -646,7 +667,7 @@ visualize_patches(image_square, patch_size)
 
 # ╔═╡ 44f39ba0-68e6-450d-a7fa-99f180a48b67
 md"""
-A patch embedding layer is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector. Since we are working on RGB images (3 channels), we define a linear projection for each channel independently and then combine them.
+A **patch embedding layer** is one that takes each of the image patches, like those displayed above, and then projects that into a vector. One approach is to simply flatten each patch and use a linear projection (using a matrix multiplication) to convert this into a vector. Since we are working on RGB images (3 channels), we define a linear projection for each channel independently and then combine them.
 
 ---
 """
@@ -730,6 +751,17 @@ let
         clabel="Value")
 end
 
+
+# ╔═╡ 331f8b02-dafa-4d29-84bc-4238f227c9a8
+md"""
+You can embedded think of the embedded patches already as the tokens ``\mathbf{T}`` that will be fed into our ViT model.
+
+Recall graphically, ``\mathbf{T}`` is constructed from ``\mathbf{t}_1, \dots t_N`` like this
+
+![Token Matrix]()
+
+What we do next with **positional encoding**simply adds information about the position patch index, and so doesn't change the shape of the tokens.
+"""
 
 # ╔═╡ ff7337df-dd2a-4688-9623-abac908491c5
 function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedded_patches::Matrix{Float64})
@@ -1017,7 +1049,7 @@ begin
 end
 
 # ╔═╡ 1831af2d-587f-40ed-80bc-dd96595aaccf
-let 
+begin 
 	# Extract a single CIFAR-10 image and label
     img_data = train_dataset.features[:, :, :, 1]  # Shape: 32x32x3 (HWC format)
     img_data_permuted = permutedims(img_data, (3, 1, 2))  # CHW format for the VisionTransformer
@@ -3609,6 +3641,7 @@ version = "1.4.1+1"
 # ╠═4cc97f4d-7a4c-487a-8684-1edd1bb963a5
 # ╠═ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 # ╠═970f0e2b-459b-4baa-ae30-886c2bada7b4
+# ╠═e19d9f6b-8be8-4283-81a5-e30cdd91c654
 # ╠═191c435c-4094-4326-9e18-0ee8dc3058ab
 # ╠═2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 # ╠═afe50e6c-9e61-4246-a8ac-bebc83e2715c
@@ -3645,6 +3678,7 @@ version = "1.4.1+1"
 # ╠═a2ff04a3-4118-47b8-b768-fc2a4986167b
 # ╠═9d6cd065-5f25-4943-b155-3602db474bff
 # ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
+# ╠═331f8b02-dafa-4d29-84bc-4238f227c9a8
 # ╠═ff7337df-dd2a-4688-9623-abac908491c5
 # ╠═fa4a03f5-f52a-4fbb-bb51-4f7daca912ac
 # ╠═8e813069-1265-4469-980d-e1450d6ae173
