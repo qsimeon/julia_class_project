@@ -25,7 +25,7 @@ end
 md"""
 # Implementing a Vision Transformer (ViT) in Julia!
 
-The Transformer architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
+The **Transformer** architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
 
 ![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/transformer_architecture.jpg?raw=true)
 
@@ -580,7 +580,7 @@ md"""
 
 It turns out the patch embedding can be implemented by applying a strided convolution. However, we will take the more direct and visualizable approach of chopping up an image into patches and linearly projecting the vector that is the flattened patch to the desired dimensionality. 
 
-Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
+Remember, **transformers** _operate on tokens_ i.e. the perform **transform**ations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
 
 ![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_tokenize.jpg?raw=true)
 
@@ -763,39 +763,7 @@ You can embedded think of the embedded patches already as the tokens ``\mathbf{T
 What we do next with **positional encoding**simply adds information about the position patch index, and so doesn't change the shape of the tokens.
 """
 
-# ╔═╡ ff7337df-dd2a-4688-9623-abac908491c5
-# function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedded_patches::Matrix{Float64})
-#     # Extract patches for visualization
-#     patches = extract_patches(image, patch_size)
-    
-#     # Calculate grid dimensions for patches
-#     n_patches = length(patches)
-#     grid_dim = div(size(image, 1), patch_size)  # Grid dimensions (e.g., 16x16 for 256x256 with patch_size=16)
-    
-#     # Start with the original image
-#     p1 = plot(image, title="Input Image", size=(800, 800), color=:grays, axis=false)
-    
-#     # Overlay transparent patches
-#     for i in 0:grid_dim-1
-#         for j in 0:grid_dim-1
-#             # Draw rectangles for patches
-#             rectangle = Shape([j*patch_size, (j+1)*patch_size, (j+1)*patch_size, j*patch_size],
-#                               [i*patch_size, i*patch_size, (i+1)*patch_size, (i+1)*patch_size])
-#             plot!(rectangle, lw=1.5, linealpha=0.7, fillalpha=0.0, color=:red, legend=false)
-#         end
-#     end
-    
-#     # Visualize embeddings as a heatmap
-#     p2 = heatmap(embedded_patches, title="Patch Embeddings", xlabel="Embedding Dimension",
-#                  ylabel="Patch Index", color=:viridis, size=(800, 800))
-    
-#     # Combine the two plots
-#     plot(p1, p2, layout=(1, 2), size=(1200, 800))
-# end
-
-
-# ╔═╡ 9a7cea77-f074-4564-a1ff-1237b5c6a6e0
-# Updated Visualization Function
+# ╔═╡ cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
 function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedded_patches::Matrix{Float64}, highlight_patch::Int)
     # Extract patches for visualization
     n_patches = size(embedded_patches, 1)
@@ -815,15 +783,17 @@ function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedd
 
             # Highlight the specific patch
             if patch_index == highlight_patch
-                plot!(rectangle, lw=3, linealpha=1.0, color=:red, fillalpha=0.0, legend=false)
+                plot!(rectangle, lw=3, color=:red, fillalpha=0.0, legend=false)
+                text_color = :red  # Highlight text color for the selected patch
             else
-                plot!(rectangle, lw=1.5, linealpha=0.7, fillalpha=0.0, color=:blue, legend=false)
+                plot!(rectangle, lw=1.5, color=:black, fillalpha=0.0, legend=false)
+                text_color = :black
             end
 
             # Add patch index
             text_x = j * patch_size + patch_size / 2
             text_y = i * patch_size + patch_size / 2
-            annotate!(text_x, text_y, text(string(patch_index), 12, :black, halign=:center, valign=:middle))
+            annotate!(text_x, text_y, text(string(patch_index), 12, text_color, halign=:center, valign=:center))
         end
     end
 
@@ -838,51 +808,23 @@ function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedd
         axis=false
     )
 
-    # Add spacing between rows of the heatmap
-    rows_with_spacing = vcat(embedded_patches, fill(NaN, 1, size(embedded_patches, 2)))  # Add NaN rows for spacing
-    p2 = heatmap(
-        rows_with_spacing,
-        title="Patch Embeddings",
-        xlabel="Embedding Dimension",
-        ylabel="Patch Index",
-        color=:viridis,
-        size=(800, 800),
-        axis=false
+    # Highlight the corresponding row in the heatmap with a border
+    row_start = highlight_patch - 0.5
+    border_shape = Shape(
+        [0.5, size(embedded_patches, 2) + 0.5, size(embedded_patches, 2) + 0.5, 0.5],
+        [row_start, row_start, row_start + 1, row_start + 1]
     )
-
-    # Highlight the corresponding row in the heatmap
-    h_rect = Shape([0.5, size(embedded_patches, 2) + 0.5, size(embedded_patches, 2) + 0.5, 0.5],
-                   [highlight_patch - 0.5, highlight_patch - 0.5, highlight_patch + 0.5, highlight_patch + 0.5])
-    plot!(p2, h_rect, lw=3, linealpha=1.0, color=:red, legend=false)
+    plot!(p2, border_shape, lw=3, color=:red, fillalpha=0.0, legend=false)
 
     # Combine the two plots
     plot(p1, p2, layout=(1, 2), size=(1600, 800))
 end
 
-
-# ╔═╡ fa4a03f5-f52a-4fbb-bb51-4f7daca912ac
-# # Example Usage
-# let
-#     img_size = size(image_square, 1)  # Image size (assumes square image)
-#     nin = size(channelview(image_square), 1)  # Number of input channels (RGB)
-#     # nout = 64  # Desired embedding dimension
-    
-#     # Initialize PatchEmbedLinear
-#     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
-    
-#     # Apply PatchEmbedLinear to the image
-#     embedded_patches = patch_embed(image_square)
-    
-#     # Visualize the process
-#     visualize_patch_embedding(image_square, patch_size, embedded_patches)
-# end
-
-# ╔═╡ 658028db-2f0c-4ff1-8063-76ab121a9e51
+# ╔═╡ 61c64d4b-b04f-4643-8949-db7b79e2293e
+# Example Usage:
 let
     img_size = size(image_square, 1)  # Image size (assumes square image)
     nin = size(channelview(image_square), 1)  # Number of input channels (RGB)
-    patch_size = 16
-    nout = 64  # Desired embedding dimension
 
     # Initialize PatchEmbedLinear
     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
@@ -890,10 +832,10 @@ let
     # Apply PatchEmbedLinear to the image
     embedded_patches = patch_embed(image_square)
 
-    # Visualize the process, highlighting patch index 5
-    visualize_patch_embedding(image_square, patch_size, embedded_patches, 5)
+    # Visualize the process, highlighting the middle patch
+    middle_patch = div(size(embedded_patches, 1), 2)
+    visualize_patch_embedding(image_square, patch_size, embedded_patches, middle_patch)
 end
-
 
 # ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
 md"""
@@ -3854,10 +3796,10 @@ version = "1.4.1+1"
 # ╠═90019339-1fdf-4541-b71b-a00b9ef7d904
 # ╠═db19fde5-434c-4030-9a61-0200ddca659f
 # ╠═a2bf29b4-174d-42e1-94b6-39822556349c
-# ╠═ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
-# ╠═c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
-# ╠═9e705315-d646-4373-854d-47a9f9d9076b
-# ╠═5a0607bc-bf03-4b19-894f-1bcfd68a0762
+# ╟─ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
+# ╟─c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
+# ╟─9e705315-d646-4373-854d-47a9f9d9076b
+# ╟─5a0607bc-bf03-4b19-894f-1bcfd68a0762
 # ╠═b35b28dd-e992-49a0-8e01-abd3e26ad093
 # ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # ╠═44f39ba0-68e6-450d-a7fa-99f180a48b67
@@ -3865,10 +3807,8 @@ version = "1.4.1+1"
 # ╠═9d6cd065-5f25-4943-b155-3602db474bff
 # ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # ╠═331f8b02-dafa-4d29-84bc-4238f227c9a8
-# ╠═ff7337df-dd2a-4688-9623-abac908491c5
-# ╠═9a7cea77-f074-4564-a1ff-1237b5c6a6e0
-# ╠═fa4a03f5-f52a-4fbb-bb51-4f7daca912ac
-# ╠═658028db-2f0c-4ff1-8063-76ab121a9e51
+# ╠═cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
+# ╟─61c64d4b-b04f-4643-8949-db7b79e2293e
 # ╠═8e813069-1265-4469-980d-e1450d6ae173
 # ╠═a6fc3703-585d-453f-a30a-25d080ab053d
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
