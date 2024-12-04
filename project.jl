@@ -40,7 +40,7 @@ The **Transformer** architecture, introduced in the paper _Attention Is All You 
 md"""
 One thing to keep in mind throughout this notebook is that Transformers operate on **tokens**. 
 
-A sequence of tokens will be denoted by a matrix``\mathbf{T} \in \mathbb{R}^{N \times 1}``, in which each token in the sequence, ``\mathbf{t}_1, \ldots, \mathrm{t}_N``, is transposed to become a row of the matrix:
+A sequence of tokens will be denoted by a matrix ``\mathbf{T} \in \mathbb{R}^{N \times 1}``, in which each token in the sequence, ``\mathbf{t}_1, \ldots, \mathrm{t}_N``, is transposed to become a row of the matrix:
 
 ```math
 \mathbf{T}=\left[\begin{array}{c}
@@ -134,7 +134,10 @@ end
 
 
 # ╔═╡ 9adfff6a-e83e-4266-8bae-67f4a16e011f
-@bind n_tokens Slider(5:20, show_value=true)
+begin
+	println("number of tokens")
+	@bind n_tokens Slider(5:20, show_value=true)
+end
 
 # ╔═╡ 5a498179-0be9-4e70-988f-14575d12a396
 # Test `AttentionHead` implementation
@@ -143,6 +146,8 @@ let
 	head = AttentionHead{Float64}(dim, attn_dim)
 	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
 	attn_output, alpha = head(X)
+
+	println("Test `AttentionHead` implementation")
 	println("attention output shape: ", size(attn_output))
 	println("attention weight shape: ", size(alpha))
 	heatmap(
@@ -728,7 +733,10 @@ end
 
 
 # ╔═╡ 9d6cd065-5f25-4943-b155-3602db474bff
-@bind nout Slider([16:16:96...], show_value=true, default=32)
+begin
+	println("embedding dimension")
+	@bind nout Slider([16:16:96...], show_value=true, default=32)
+end
 
 # ╔═╡ 02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # Test `PatchEmbedLinear` implementation for RGB images
@@ -901,7 +909,7 @@ let
     embeddings = embedding(indices)
 
     # Verify output
-	println("Test `Embedding` struct")
+	println("Test `Embedding` implementation")
     println("Indices: ", indices)
     println("Embedding shape: ", size(embeddings))  # Should be (length(indices), embedding_dim)
 end
@@ -950,7 +958,7 @@ let
     output = sequential(X)
 
     # Verify output shape
-	println("Test `Sequential` struct")
+	println("Test `Sequential` implementation")
     println("Input shape: ", size(X))          # Should be (10, dim)
     println("Output shape: ", size(output))   # Should be (10, nout)
 end
@@ -1030,8 +1038,10 @@ end
 
 # ╔═╡ 5dfc2447-fbd2-4337-a0d4-36dcf38139c0
 begin
+	println("attention layer")
 	num_layers = 6
 	@bind attn_layer Slider(1:num_layers, default=1, show_value=true)
+	
 end
 
 # ╔═╡ 2f5badaf-4342-42ec-8240-c5c642c1fa8f
@@ -1104,7 +1114,10 @@ begin
 end
 
 # ╔═╡ b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
-@bind img_idx Slider(1:subset_size, show_value=true, default=1)
+begin
+	println("Example CIFAR image")
+	@bind img_idx Slider(1:subset_size, show_value=true, default=1)
+end
 
 # ╔═╡ b27a7977-7f64-41ce-82fa-c6effd52523c
 begin 
@@ -1170,12 +1183,6 @@ end
 # 	cifar10_html_table
 # end
 
-# ╔═╡ 22689f54-30d2-41fc-89ca-5bf0f95e855d
-
-
-# ╔═╡ 1831af2d-587f-40ed-80bc-dd96595aaccf
-
-
 # ╔═╡ f708229e-d2a2-424c-91f0-3bffda23fe53
 md"""
 ## Cross-Entropy Loss Function
@@ -1217,7 +1224,7 @@ md"""
 
 # ╔═╡ 991500b0-5f55-4fa0-b796-88d8fa1ca568
 md"""
-# Futures steps:
+# Future steps:
 - Figure out how to train our ViT model using an autodiff package like `Enzyme.jl`
 - Visualize actual real attention maps for that trained model.
 
@@ -3781,16 +3788,16 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═4cc97f4d-7a4c-487a-8684-1edd1bb963a5
-# ╠═ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
-# ╠═970f0e2b-459b-4baa-ae30-886c2bada7b4
-# ╠═e19d9f6b-8be8-4283-81a5-e30cdd91c654
-# ╠═191c435c-4094-4326-9e18-0ee8dc3058ab
-# ╠═2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
-# ╠═afe50e6c-9e61-4246-a8ac-bebc83e2715c
+# ╟─4cc97f4d-7a4c-487a-8684-1edd1bb963a5
+# ╟─ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
+# ╟─970f0e2b-459b-4baa-ae30-886c2bada7b4
+# ╟─e19d9f6b-8be8-4283-81a5-e30cdd91c654
+# ╟─191c435c-4094-4326-9e18-0ee8dc3058ab
+# ╟─2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
+# ╟─afe50e6c-9e61-4246-a8ac-bebc83e2715c
 # ╠═ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
-# ╠═9adfff6a-e83e-4266-8bae-67f4a16e011f
-# ╠═5a498179-0be9-4e70-988f-14575d12a396
+# ╟─9adfff6a-e83e-4266-8bae-67f4a16e011f
+# ╟─5a498179-0be9-4e70-988f-14575d12a396
 # ╟─c3eaadcf-a06d-4469-ba9a-399043e72a9f
 # ╟─245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
 # ╟─1c2692a1-e8a0-4926-ad42-3787671eeb51
@@ -3801,7 +3808,7 @@ version = "1.4.1+1"
 # ╟─03759beb-1ac3-4bd7-800b-f4461edb58b1
 # ╠═c12ffac7-7533-42fa-a721-30938396e898
 # ╟─a7f306c1-12aa-4ecc-9764-70a72c41bd67
-# ╠═2f40b3cf-e690-40be-8e5c-b66e022c505d
+# ╟─2f40b3cf-e690-40be-8e5c-b66e022c505d
 # ╠═97c1b967-b634-4ff0-8007-939bf8ea87fa
 # ╠═9bd646c3-ef9d-4b06-a598-267c0cbdff4a
 # ╟─e88482de-8685-47d7-9cbb-78328eed8244
@@ -3809,17 +3816,17 @@ version = "1.4.1+1"
 # ╟─fd2a796f-b683-4792-a976-b4071fda58a0
 # ╟─7eb8e4ec-80ae-4744-b21d-8b36885ff98c
 # ╟─90019339-1fdf-4541-b71b-a00b9ef7d904
-# ╠═db19fde5-434c-4030-9a61-0200ddca659f
+# ╟─db19fde5-434c-4030-9a61-0200ddca659f
 # ╟─a2bf29b4-174d-42e1-94b6-39822556349c
 # ╟─ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
 # ╟─c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
 # ╟─9e705315-d646-4373-854d-47a9f9d9076b
 # ╟─5a0607bc-bf03-4b19-894f-1bcfd68a0762
-# ╠═b35b28dd-e992-49a0-8e01-abd3e26ad093
-# ╠═8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
+# ╟─b35b28dd-e992-49a0-8e01-abd3e26ad093
+# ╟─8a0abb17-b7f0-4952-b5c1-0d52095cf2bf
 # ╟─44f39ba0-68e6-450d-a7fa-99f180a48b67
 # ╟─a2ff04a3-4118-47b8-b768-fc2a4986167b
-# ╠═9d6cd065-5f25-4943-b155-3602db474bff
+# ╟─9d6cd065-5f25-4943-b155-3602db474bff
 # ╟─02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # ╟─331f8b02-dafa-4d29-84bc-4238f227c9a8
 # ╟─cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
@@ -3836,21 +3843,19 @@ version = "1.4.1+1"
 # ╟─e32c2cb0-2862-4f7a-9470-61ea5544202e
 # ╟─5dfc2447-fbd2-4337-a0d4-36dcf38139c0
 # ╟─2f5badaf-4342-42ec-8240-c5c642c1fa8f
-# ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
-# ╠═58829bc1-d64c-4931-9589-86348b440885
+# ╟─33a7fb9e-838d-4b5b-9310-5d92719d7eaf
+# ╟─58829bc1-d64c-4931-9589-86348b440885
 # ╠═b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
-# ╠═b27a7977-7f64-41ce-82fa-c6effd52523c
+# ╟─b27a7977-7f64-41ce-82fa-c6effd52523c
 # ╟─6904ea81-b69a-4964-9342-e22d7ce4a168
 # ╟─baf9963a-2217-4681-afad-646b71322e36
-# ╠═22689f54-30d2-41fc-89ca-5bf0f95e855d
-# ╠═1831af2d-587f-40ed-80bc-dd96595aaccf
-# ╠═f708229e-d2a2-424c-91f0-3bffda23fe53
+# ╟─f708229e-d2a2-424c-91f0-3bffda23fe53
 # ╟─c207fa17-ce49-4a9f-b338-1613a60275cc
 # ╠═2a5da94c-dd22-450f-93b9-3e8298308488
-# ╠═b5669b02-7a62-4129-ad13-80a475c139cd
-# ╠═991500b0-5f55-4fa0-b796-88d8fa1ca568
-# ╠═a2418e79-b2a3-4310-ba6e-7b0af50264ff
-# ╠═e6f6f744-7179-4d45-94fa-de0b3bc303bf
+# ╟─b5669b02-7a62-4129-ad13-80a475c139cd
+# ╟─991500b0-5f55-4fa0-b796-88d8fa1ca568
+# ╟─a2418e79-b2a3-4310-ba6e-7b0af50264ff
+# ╟─e6f6f744-7179-4d45-94fa-de0b3bc303bf
 # ╠═9cf11cbd-4e1e-4a01-be53-212b53a7bc25
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
