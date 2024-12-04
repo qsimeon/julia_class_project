@@ -792,12 +792,13 @@ The vanilla Transformer considered two types of encodings:
 ![Sinusoidal Positional Encoding](https://github.com/qsimeon/julia_class_project/blob/main/sine_encoding.jpg?raw=True)
 - (2) _Learned positional encoding_: As its name suggests, assignes each element in a sequence with a learned column vector which encodes its absolute position.
 ---
-
-We will implement the latter (2) by implementing and `Embedding` module since it is straightforward and becuase embeddig layers are extremely useful and ubiquitous in deep learning code.
 """
 
 # ╔═╡ a6fc3703-585d-453f-a30a-25d080ab053d
 md"""
+We will implement the latter (2) by implementing and `Embedding` module since it is straightforward and becuase embeddig layers are extremely useful and ubiquitous in deep learning code.
+
+![Embedding Table Explanation]()
 ---
 """
 
