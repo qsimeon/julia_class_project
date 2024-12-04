@@ -21,50 +21,6 @@ begin
 	using MLDatasets, Enzyme ,  Statistics
 end 
 
-# ╔═╡ 6904ea81-b69a-4964-9342-e22d7ce4a168
-# function generate_cifar10_html_table(train_dataset, class_names; samples_per_class=5)
-#     using Base64
-
-#     html = """
-#     <table border="1" cellpadding="5" style="border-collapse: collapse; text-align: center;">
-#         <thead>
-#             <tr>
-#                 <th>Class</th>
-#     """
-#     # Add headers for the image samples
-#     for _ in 1:samples_per_class
-#         html *= "<th>Sample</th>"
-#     end
-#     html *= "</tr></thead><tbody>"
-
-#     for (i, class_name) in enumerate(class_names)
-#         html *= """
-#         <tr>
-#             <td style="padding: 5px; background-color: #f2f2f2;">$class_name</td>
-#         """
-#         # Find samples of this class
-#         sample_indices = findall(x -> x == i, train_dataset.targets)
-#         for j in 1:min(samples_per_class, length(sample_indices))
-#             img_idx = sample_indices[j]
-#             img = train_dataset.features[:, :, :, img_idx]
-#             img_rgb = colorview(RGB, permutedims(img, (3, 1, 2)))
-
-#             # Convert RGB image to PNG format
-#             io = IOBuffer()
-#             PNGFiles.save(io, img_rgb)  # Use PNGFiles package for saving to IOBuffer
-#             img_base64 = base64encode(String(take!(io)))
-
-#             # Embed the image in the table
-#             html *= "<td><img src=\"data:image/png;base64,$img_base64\" width=\"32\" height=\"32\" /></td>"
-#         end
-#         html *= "</tr>"
-#     end
-
-#     html *= "</tbody></table>"
-#     return Markdown.html(html)
-# end
-
-
 # ╔═╡ ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 md"""
 # Implementing a Vision Transformer (ViT) in Julia!
@@ -590,11 +546,13 @@ md"""
 
 # ╔═╡ 90019339-1fdf-4541-b71b-a00b9ef7d904
 md"""
-Using callable structs, parametric types, and matrix operations, we set up the basic components and combined them to create a Transformer module . 
+### What we've accomplished so far
+
+Using _callable structs_, parametric types, and matrix operations_, we set up the basic components and combined them to create a Transformer module . 
 
 Let's view our Julia callable struct implemenations of the `AttentionHead` and `Transformer` modules side-by-side with a bare-bones implementation in PyTorch.
 
-__Show side-by-side comparison:__
+__Side-by-side comparison:__
 
 ![AttentionHead PyJl](https://github.com/qsimeon/julia_class_project/blob/main/attention_python_julia.jpg?raw=true)
 
@@ -806,52 +764,136 @@ What we do next with **positional encoding**simply adds information about the po
 """
 
 # ╔═╡ ff7337df-dd2a-4688-9623-abac908491c5
-function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedded_patches::Matrix{Float64})
+# function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedded_patches::Matrix{Float64})
+#     # Extract patches for visualization
+#     patches = extract_patches(image, patch_size)
+    
+#     # Calculate grid dimensions for patches
+#     n_patches = length(patches)
+#     grid_dim = div(size(image, 1), patch_size)  # Grid dimensions (e.g., 16x16 for 256x256 with patch_size=16)
+    
+#     # Start with the original image
+#     p1 = plot(image, title="Input Image", size=(800, 800), color=:grays, axis=false)
+    
+#     # Overlay transparent patches
+#     for i in 0:grid_dim-1
+#         for j in 0:grid_dim-1
+#             # Draw rectangles for patches
+#             rectangle = Shape([j*patch_size, (j+1)*patch_size, (j+1)*patch_size, j*patch_size],
+#                               [i*patch_size, i*patch_size, (i+1)*patch_size, (i+1)*patch_size])
+#             plot!(rectangle, lw=1.5, linealpha=0.7, fillalpha=0.0, color=:red, legend=false)
+#         end
+#     end
+    
+#     # Visualize embeddings as a heatmap
+#     p2 = heatmap(embedded_patches, title="Patch Embeddings", xlabel="Embedding Dimension",
+#                  ylabel="Patch Index", color=:viridis, size=(800, 800))
+    
+#     # Combine the two plots
+#     plot(p1, p2, layout=(1, 2), size=(1200, 800))
+# end
+
+
+# ╔═╡ 9a7cea77-f074-4564-a1ff-1237b5c6a6e0
+# Updated Visualization Function
+function visualize_patch_embedding(image::Matrix{<:RGB}, patch_size::Int, embedded_patches::Matrix{Float64}, highlight_patch::Int)
     # Extract patches for visualization
-    patches = extract_patches(image, patch_size)
-    
-    # Calculate grid dimensions for patches
-    n_patches = length(patches)
+    n_patches = size(embedded_patches, 1)
     grid_dim = div(size(image, 1), patch_size)  # Grid dimensions (e.g., 16x16 for 256x256 with patch_size=16)
-    
+
     # Start with the original image
     p1 = plot(image, title="Input Image", size=(800, 800), color=:grays, axis=false)
-    
-    # Overlay transparent patches
+
+    # Overlay transparent patches and add patch indices
     for i in 0:grid_dim-1
         for j in 0:grid_dim-1
-            # Draw rectangles for patches
-            rectangle = Shape([j*patch_size, (j+1)*patch_size, (j+1)*patch_size, j*patch_size],
-                              [i*patch_size, i*patch_size, (i+1)*patch_size, (i+1)*patch_size])
-            plot!(rectangle, lw=1.5, linealpha=0.7, fillalpha=0.0, color=:red, legend=false)
+            patch_index = i * grid_dim + j + 1
+            rectangle = Shape(
+                [j * patch_size, (j + 1) * patch_size, (j + 1) * patch_size, j * patch_size],
+                [i * patch_size, i * patch_size, (i + 1) * patch_size, (i + 1) * patch_size]
+            )
+
+            # Highlight the specific patch
+            if patch_index == highlight_patch
+                plot!(rectangle, lw=3, linealpha=1.0, color=:red, fillalpha=0.0, legend=false)
+            else
+                plot!(rectangle, lw=1.5, linealpha=0.7, fillalpha=0.0, color=:blue, legend=false)
+            end
+
+            # Add patch index
+            text_x = j * patch_size + patch_size / 2
+            text_y = i * patch_size + patch_size / 2
+            annotate!(text_x, text_y, text(string(patch_index), 12, :black, halign=:center, valign=:middle))
         end
     end
-    
+
     # Visualize embeddings as a heatmap
-    p2 = heatmap(embedded_patches, title="Patch Embeddings", xlabel="Embedding Dimension",
-                 ylabel="Patch Index", color=:viridis, size=(800, 800))
-    
+    p2 = heatmap(
+        embedded_patches,
+        title="Patch Embeddings",
+        xlabel="Embedding Dimension",
+        ylabel="Patch Index",
+        color=:viridis,
+        size=(800, 800),
+        axis=false
+    )
+
+    # Add spacing between rows of the heatmap
+    rows_with_spacing = vcat(embedded_patches, fill(NaN, 1, size(embedded_patches, 2)))  # Add NaN rows for spacing
+    p2 = heatmap(
+        rows_with_spacing,
+        title="Patch Embeddings",
+        xlabel="Embedding Dimension",
+        ylabel="Patch Index",
+        color=:viridis,
+        size=(800, 800),
+        axis=false
+    )
+
+    # Highlight the corresponding row in the heatmap
+    h_rect = Shape([0.5, size(embedded_patches, 2) + 0.5, size(embedded_patches, 2) + 0.5, 0.5],
+                   [highlight_patch - 0.5, highlight_patch - 0.5, highlight_patch + 0.5, highlight_patch + 0.5])
+    plot!(p2, h_rect, lw=3, linealpha=1.0, color=:red, legend=false)
+
     # Combine the two plots
-    plot(p1, p2, layout=(1, 2), size=(1200, 800))
+    plot(p1, p2, layout=(1, 2), size=(1600, 800))
 end
 
 
 # ╔═╡ fa4a03f5-f52a-4fbb-bb51-4f7daca912ac
-# Example Usage
+# # Example Usage
+# let
+#     img_size = size(image_square, 1)  # Image size (assumes square image)
+#     nin = size(channelview(image_square), 1)  # Number of input channels (RGB)
+#     # nout = 64  # Desired embedding dimension
+    
+#     # Initialize PatchEmbedLinear
+#     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
+    
+#     # Apply PatchEmbedLinear to the image
+#     embedded_patches = patch_embed(image_square)
+    
+#     # Visualize the process
+#     visualize_patch_embedding(image_square, patch_size, embedded_patches)
+# end
+
+# ╔═╡ 658028db-2f0c-4ff1-8063-76ab121a9e51
 let
     img_size = size(image_square, 1)  # Image size (assumes square image)
     nin = size(channelview(image_square), 1)  # Number of input channels (RGB)
-    # nout = 64  # Desired embedding dimension
-    
+    patch_size = 16
+    nout = 64  # Desired embedding dimension
+
     # Initialize PatchEmbedLinear
     patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, nin, nout)
-    
+
     # Apply PatchEmbedLinear to the image
     embedded_patches = patch_embed(image_square)
-    
-    # Visualize the process
-    visualize_patch_embedding(image_square, patch_size, embedded_patches)
+
+    # Visualize the process, highlighting patch index 5
+    visualize_patch_embedding(image_square, patch_size, embedded_patches, 5)
 end
+
 
 # ╔═╡ 8e813069-1265-4469-980d-e1450d6ae173
 md"""
@@ -1082,7 +1124,7 @@ CIFAR-10 is an image classification dataset:
 - Each data sample is an RGB $32 \times 32$ real image. A raw loaded image $\in \mathbb{R}^{3 \times 32 \times 32}$.
 - Each image is associated with a label $\in \{0, 1, 2, \dots, 9\}$.
 
-![CIFAR10 Table]
+![CIFAR10 Table](https://github.com/qsimeon/julia_class_project/blob/main/cifar10_table.jpg?raw=true)
 
 Our goal is to train a neural network classifier (with a *ViT* as the feature extractor "backbone") that takes such $3 \times 32 \times 32$ images and predicts a label.
 """
@@ -1119,6 +1161,50 @@ begin
 	heatmap(rgb_image, title=cifar10_classes[target_label], grid=false, ticks=false)
 	
 end
+
+# ╔═╡ 6904ea81-b69a-4964-9342-e22d7ce4a168
+# function generate_cifar10_html_table(train_dataset, class_names; samples_per_class=5)
+#     using Base64
+
+#     html = """
+#     <table border="1" cellpadding="5" style="border-collapse: collapse; text-align: center;">
+#         <thead>
+#             <tr>
+#                 <th>Class</th>
+#     """
+#     # Add headers for the image samples
+#     for _ in 1:samples_per_class
+#         html *= "<th>Sample</th>"
+#     end
+#     html *= "</tr></thead><tbody>"
+
+#     for (i, class_name) in enumerate(class_names)
+#         html *= """
+#         <tr>
+#             <td style="padding: 5px; background-color: #f2f2f2;">$class_name</td>
+#         """
+#         # Find samples of this class
+#         sample_indices = findall(x -> x == i, train_dataset.targets)
+#         for j in 1:min(samples_per_class, length(sample_indices))
+#             img_idx = sample_indices[j]
+#             img = train_dataset.features[:, :, :, img_idx]
+#             img_rgb = colorview(RGB, permutedims(img, (3, 1, 2)))
+
+#             # Convert RGB image to PNG format
+#             io = IOBuffer()
+#             PNGFiles.save(io, img_rgb)  # Use PNGFiles package for saving to IOBuffer
+#             img_base64 = base64encode(String(take!(io)))
+
+#             # Embed the image in the table
+#             html *= "<td><img src=\"data:image/png;base64,$img_base64\" width=\"32\" height=\"32\" /></td>"
+#         end
+#         html *= "</tr>"
+#     end
+
+#     html *= "</tbody></table>"
+#     return Markdown.html(html)
+# end
+
 
 # ╔═╡ baf9963a-2217-4681-afad-646b71322e36
 # begin
@@ -3780,7 +3866,9 @@ version = "1.4.1+1"
 # ╠═02fb8ff3-647e-4d55-8c2b-a1d9066338ed
 # ╠═331f8b02-dafa-4d29-84bc-4238f227c9a8
 # ╠═ff7337df-dd2a-4688-9623-abac908491c5
+# ╠═9a7cea77-f074-4564-a1ff-1237b5c6a6e0
 # ╠═fa4a03f5-f52a-4fbb-bb51-4f7daca912ac
+# ╠═658028db-2f0c-4ff1-8063-76ab121a9e51
 # ╠═8e813069-1265-4469-980d-e1450d6ae173
 # ╠═a6fc3703-585d-453f-a30a-25d080ab053d
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
@@ -3796,12 +3884,12 @@ version = "1.4.1+1"
 # ╠═58829bc1-d64c-4931-9589-86348b440885
 # ╠═b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
 # ╠═b27a7977-7f64-41ce-82fa-c6effd52523c
-# ╠═6904ea81-b69a-4964-9342-e22d7ce4a168
-# ╠═baf9963a-2217-4681-afad-646b71322e36
+# ╟─6904ea81-b69a-4964-9342-e22d7ce4a168
+# ╟─baf9963a-2217-4681-afad-646b71322e36
 # ╠═22689f54-30d2-41fc-89ca-5bf0f95e855d
 # ╠═1831af2d-587f-40ed-80bc-dd96595aaccf
 # ╠═f708229e-d2a2-424c-91f0-3bffda23fe53
-# ╠═c207fa17-ce49-4a9f-b338-1613a60275cc
+# ╟─c207fa17-ce49-4a9f-b338-1613a60275cc
 # ╠═2a5da94c-dd22-450f-93b9-3e8298308488
 # ╠═b5669b02-7a62-4129-ad13-80a475c139cd
 # ╠═991500b0-5f55-4fa0-b796-88d8fa1ca568
