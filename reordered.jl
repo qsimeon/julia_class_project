@@ -369,6 +369,41 @@ let
 
 end
 
+# ╔═╡ 61479c5d-7a13-43cd-89d6-864abfd74f29
+# with mask
+let
+	dim, attn_dim = 3, n_tokens
+	head = AttentionHead{Float64}(dim, attn_dim)
+	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
+
+	p1 = heatmap(X, title="Input", aspect_ratio=1, colorbar=false)
+
+	Q = randn(attn_dim, dim)
+	K = randn(attn_dim, dim)
+	V = randn(dim, dim)
+	p2 = heatmap(Q, title="Q", aspect_ratio=1, colorbar=false)
+	p3 = heatmap(K, title="K", aspect_ratio=1, colorbar=false)
+	p4 = heatmap(V, title="V", aspect_ratio=1, colorbar=false)
+	p5 = heatmap(X * transpose(Q), title="XQ", aspect_ratio=1, colorbar=false)
+	p6 = heatmap(X * transpose(K), title="XK", aspect_ratio=1, colorbar=false)
+	p7 = heatmap(X * transpose(V), title="XV", aspect_ratio=1, colorbar=false)
+	scores = Q * transpose(K) / sqrt(head.n_hidden)
+	p8 = heatmap(scores, title="attn", aspect_ratio=1, colorbar=false)
+
+	mask = UpperTriangular(ones(n_tokens, n_tokens))
+	p85 = heatmap(mask, title="mask", aspect_ratio=1, colorbar=false)
+	scores_mask = scores .* mask .+ (1 .- mask) 
+	p9 = heatmap(scores_mask, title="masked attn", aspect_ratio=1, colorbar=false)
+
+	alpha = softmax(scores_mask, dims=ndims(scores_mask)) 
+	p10 = heatmap(alpha, title="alpha", aspect_ratio=1, colorbar=false)
+
+	attn_output = alpha * (X * transpose(V))
+	p11 = heatmap(attn_output, title="output", aspect_ratio=1, colorbar=false)
+
+	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p85,p9,p10,p11]..., layout=(3,4))
+end
+
 # ╔═╡ 86f89130-8cc1-4669-8788-e1d423aa439c
 md"""
 #### Multi-headed attention 
@@ -442,41 +477,6 @@ let
 	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
 	    yticks=1:n_tokens,
 	)
-end
-
-# ╔═╡ 61479c5d-7a13-43cd-89d6-864abfd74f29
-# with mask
-let
-	dim, attn_dim = 3, n_tokens
-	head = AttentionHead{Float64}(dim, attn_dim)
-	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
-
-	p1 = heatmap(X, title="Input", aspect_ratio=1, colorbar=false)
-
-	Q = randn(attn_dim, dim)
-	K = randn(attn_dim, dim)
-	V = randn(dim, dim)
-	p2 = heatmap(Q, title="Q", aspect_ratio=1, colorbar=false)
-	p3 = heatmap(K, title="K", aspect_ratio=1, colorbar=false)
-	p4 = heatmap(V, title="V", aspect_ratio=1, colorbar=false)
-	p5 = heatmap(X * transpose(Q), title="XQ", aspect_ratio=1, colorbar=false)
-	p6 = heatmap(X * transpose(K), title="XK", aspect_ratio=1, colorbar=false)
-	p7 = heatmap(X * transpose(V), title="XV", aspect_ratio=1, colorbar=false)
-	scores = Q * transpose(K) / sqrt(head.n_hidden)
-	p8 = heatmap(scores, title="attn", aspect_ratio=1, colorbar=false)
-
-	mask = UpperTriangular(ones(n_tokens, n_tokens))
-	p85 = heatmap(mask, title="mask", aspect_ratio=1, colorbar=false)
-	scores_mask = scores .* mask .+ (1 .- mask) 
-	p9 = heatmap(scores_mask, title="masked attn", aspect_ratio=1, colorbar=false)
-
-	alpha = softmax(scores_mask, dims=ndims(scores_mask)) 
-	p10 = heatmap(alpha, title="alpha", aspect_ratio=1, colorbar=false)
-
-	attn_output = alpha * (X * transpose(V))
-	p11 = heatmap(attn_output, title="output", aspect_ratio=1, colorbar=false)
-
-	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p85,p9,p10,p11]..., layout=(3,4))
 end
 
 # ╔═╡ 37831a4c-d244-4bbf-9841-0e52e345c013
@@ -652,6 +652,143 @@ We've set up a basic structure of a Transformer using callable structs, parametr
 """
 
 # ╔═╡ 03798c3d-0c59-4d77-8924-83ac3d631f54
+md"""
+#### Vision transformer
+
+There are a few more steps to making the vision transformer. This requires some additional layers for image processing. In addition to the patch embedding discussed above, we need to add positional encoding so the transformer knows where in the image a given patch is.
+
+
+"""
+
+# ╔═╡ a1d33ada-1362-4d53-9488-bded154ac73a
+struct Embedding{T<:Real}
+	emb::Array{T} # num_embeddings, embedding_dim
+
+	function Embedding{T}(n_patches::Int, dim::Int) where T<:Real 
+		emb = randn(n_patches, dim)
+		return new{T}(emb)
+	end
+end
+
+# ╔═╡ b5f76e8f-df39-4344-9f4a-ff20e4997381
+struct Parameter{T<:Real}
+	param::Vector{T}
+
+	function Parameter{T}(dim::Int) where T<:Real
+		param = randn(dim)
+		return new{T}(param)
+	end
+end
+
+# ╔═╡ ba99bfe7-bc11-4ccc-bd59-e6bc787b3648
+abstract type Layer end
+
+# ╔═╡ 4f572dab-3548-413e-941f-b758fdc4babb
+struct LayerNorm{T<:Real} <: Layer
+	dim::Int
+	function LayerNorm{T}(dim::Int) where T<:Real
+		return new{T}(dim)
+	end
+	
+	function(layernorm::LayerNorm{T})(x::Array{T}) where T<:Real 
+		return mapslices(x -> x / norm(x), x, dims=layernorm.dim)
+	end
+end
+
+# ╔═╡ 26d2f43e-2bb9-467e-9bda-f8cc1ea734fd
+struct Linear{T<:Real} <: Layer
+	weight::Array{T}
+	bias::Vector{T}
+
+	function Linear{T}(nin::Int, nout::Int) where T<:Real
+		weight = randn(nin, nout)
+		bias = randn(nout)
+		return new{T}(weight, bias)
+	end
+
+	function(linear::Linear{T})(input::Array{T}) where T<:Real 
+		return [linear.weight * input[:,:,i] for i in 1:3]
+	end
+end
+
+# ╔═╡ 6cca843c-101d-4736-927d-98f4c4e3bb95
+struct Sequential{T<:Real}
+	seq::Vector{Layer}
+	function Sequential{T}(seq::Vector{Layer}) where T<:Real
+		return new{T}(seq)
+	end
+
+	function(sequential::Sequential{T})(x::Array{T}) where T<:Real 
+		for i = 1:length(sequential.seq)
+			x = sequential.seq[i](x)
+		end
+		return x
+	end
+end
+
+# ╔═╡ fb379427-bc16-48d6-a590-b9134bd9d4c0
+### 5. Vision transformer
+struct VisionTransformer{T<:Real}
+	# n_channels       number of input image channels
+	# nout             desired output dimension
+	# img_size         width of the square image
+	# patch_size       width of the square patch
+	# dim              embedding dimension
+	# attn_dim         the hidden dimension of the attention layer
+	# mlp_dim          the hidden layer dimension of the FFN
+	# num_heads        the number of heads in the attention layer
+	# num_layers       the number of attention layers.
+	
+	patch_embed::PatchEmbedLinear{T}
+	pos_E::Array{T}
+	cls_token::Vector{T}
+	transformer::Transformer{T}
+	head::AbstractArray{T}
+
+	function VisionTransformer{T}(n_channels::Int, nout::Int, img_size::Int, patch_size::Int, dim::Int, attn_dim::Int, mlp_dim::Int, num_heads::Int, num_layers::Int) where T<:Real 
+		patch_embed = PatchEmbedLinear{T}(img_size, patch_size, n_channels, dim)
+		pos_E = Embedding{T}((img_size ÷ patch_size)^2, dim)
+		cls_token = Parameter{T}(dim)
+		transformer = Transformer{T}(dim, attn_dim, mlp_dim, num_heads, num_layers)
+		head = Sequential{T}([LayerNorm{T}(dim), Linear{T}(dim, nout)])
+
+	end
+
+	function(vt::VisionTransformer{T})(img::Array{T}, return_attn::Bool=False) where T<:Real
+		embs = vt.patch_embed(img)
+		B, t, _ = size(embs)
+		pos_ids = repeat(collect(1:t), 1, B)
+		embs += vt.pos_E(pos_ids)
+
+		cls_token = repeat(vt.cls_token, 1,1,dim)
+		x = vcat(cls_token, embs)
+
+		x, alphas = vt.transformer(x, attn_mask=None, return_attn=return_attn)
+		println(size(x))
+		out = vt.head(x)[:,1]
+		return out, alphas
+	end
+
+end
+
+# ╔═╡ 5101ea45-135d-4685-9f83-727ead8de814
+# Test `Transformer` implementation
+let
+	nout = 32
+	mlp_dim = 3
+	num_heads = 3 
+	num_layers = 6
+	vision_transformer = VisionTransformer{Float32}(n_channels, nout, img_size, patch_size, 3, dim, mlp_dim, num_heads, num_layers)
+
+	out, alphas = vision_transformer(train_dataset.features[:,:,:,cifar_img_num])
+
+	# p1 = heatmap(out, title="output", axis=false, colorbar=false, yflip=true)
+	# p2 = heatmap(alphas, title="alphas", axis=false, colorbar=false, yflip=true)
+
+    # plot(p1, p2, layout=(1, 2), size=(1200, 100))
+end
+
+# ╔═╡ c3f916bc-234a-4fd7-bd81-01f3064b83a9
 
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -3249,6 +3386,15 @@ version = "1.4.1+1"
 # ╠═38c40fd7-1b40-437b-8ac7-3b27e779798b
 # ╠═edea3648-8163-463f-bfa8-85de12f76928
 # ╟─b96638db-c20c-4906-a3ac-23a9377b962f
-# ╠═03798c3d-0c59-4d77-8924-83ac3d631f54
+# ╟─03798c3d-0c59-4d77-8924-83ac3d631f54
+# ╠═a1d33ada-1362-4d53-9488-bded154ac73a
+# ╠═b5f76e8f-df39-4344-9f4a-ff20e4997381
+# ╠═ba99bfe7-bc11-4ccc-bd59-e6bc787b3648
+# ╠═4f572dab-3548-413e-941f-b758fdc4babb
+# ╠═26d2f43e-2bb9-467e-9bda-f8cc1ea734fd
+# ╠═6cca843c-101d-4736-927d-98f4c4e3bb95
+# ╠═fb379427-bc16-48d6-a590-b9134bd9d4c0
+# ╠═5101ea45-135d-4685-9f83-727ead8de814
+# ╠═c3f916bc-234a-4fd7-bd81-01f3064b83a9
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
