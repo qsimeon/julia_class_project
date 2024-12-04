@@ -798,7 +798,7 @@ The vanilla Transformer considered two types of encodings:
 md"""
 We will implement the latter (2) by implementing and `Embedding` module since it is straightforward and becuase embeddig layers are extremely useful and ubiquitous in deep learning code.
 
-![Embedding Table Explanation]()
+![Embedding Table Explanation](https://github.com/qsimeon/julia_class_project/blob/main/how_embedding_works.jpg?raw=true)
 ---
 """
 
