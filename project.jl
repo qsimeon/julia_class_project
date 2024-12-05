@@ -1236,7 +1236,6 @@ Here's an example of what we would expect:
 In this project, our Vision Transformer (ViT) model is designed to process the CIFAR-10 dataset. Below is an example attention map visualization for the [CLS] token after training, highlighting which regions of the image the model focuses on during classification.
 
 ![Attention Map Images](https://github.com/qsimeon/julia_class_project/blob/main/figures/trained_cifar_attn.png?raw=true)
-
 """
 
 # ╔═╡ a2418e79-b2a3-4310-ba6e-7b0af50264ff
@@ -3846,7 +3845,7 @@ version = "1.4.1+1"
 # ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # ╟─58829bc1-d64c-4931-9589-86348b440885
 # ╠═b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
-# ╟─b27a7977-7f64-41ce-82fa-c6effd52523c
+# ╠═b27a7977-7f64-41ce-82fa-c6effd52523c
 # ╟─6904ea81-b69a-4964-9342-e22d7ce4a168
 # ╟─baf9963a-2217-4681-afad-646b71322e36
 # ╟─f708229e-d2a2-424c-91f0-3bffda23fe53
