@@ -27,7 +27,7 @@ md"""
 
 The **Transformer** architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
 
-![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/transformer_architecture.jpg?raw=true)
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/figures/transformer_architecture.jpg?raw=true)
 
 **NOTE:** We adapt/borrow a lot of material/concepts from
 [Torralba, A., Isola, P., & Freeman, W. T. (2021, December 1). _Foundations of Computer Vision_. MIT Press; The MIT Press, Massachusetts Institute of Technology.](https://mitpress.mit.edu/9780262048972/foundations-of-computer-vision/)
@@ -60,7 +60,7 @@ Conceptually, the transformer architecture may be thought of as a _token net_, w
 
 Token nets are just like neural nets, alternating between layers that mix nodes in linear combinations (e.g., fully connected linear layers, convolutional layers, etc.) and layers that apply a pointwise nonlinearity to each node (e.g., relus, per-token MLPs). 
 
-![Token Nets](https://github.com/qsimeon/julia_class_project/blob/main/token_net.jpg?raw=True)
+![Token Nets](https://github.com/qsimeon/julia_class_project/blob/main/figures/token_net.jpg?raw=True)
 
 The idea to keep in mind is that _tokens are to transformers as neurons are to neural nets_. 
 
@@ -72,7 +72,7 @@ The idea to keep in mind is that _tokens are to transformers as neurons are to n
 md"""
 Until recently, the best performing models for image classification had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
 
-![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/vit_architecture.jpg?raw=true)
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/figures/vit_architecture.jpg?raw=true)
 
 ---
 """
@@ -272,7 +272,7 @@ end
 md"""
 In expanded detail, here are the full mechanics of a self-attention layer, which is the kind of attention layer used in transformers. 
 
-![Self-Attention Layer](https://github.com/qsimeon/julia_class_project/blob/main/self_attention_layer.jpg?raw=true)
+![Self-Attention Layer](https://github.com/qsimeon/julia_class_project/blob/main/figures/self_attention_layer.jpg?raw=true)
 """
 
 # ╔═╡ 74eb85f0-ea48-48cd-b732-4d97f4883c85
@@ -348,7 +348,7 @@ end
 # ╔═╡ e9ce397a-b315-470d-9534-cdd1dad12a1b
 # key / query demonstration
 let
-    url = "https://github.com/qsimeon/julia_class_project/blob/main/attention_map.png?raw=true"
+    url = "https://github.com/qsimeon/julia_class_project/blob/main/figures/attention_map.png?raw=true"
     imf = download(url)
     im = load(imf)
 end
@@ -564,9 +564,9 @@ Let's view our Julia callable struct implemenations of the `AttentionHead` and `
 
 __Side-by-side comparison:__
 
-![AttentionHead PyJl](https://github.com/qsimeon/julia_class_project/blob/main/attention_python_julia.jpg?raw=true)
+![AttentionHead PyJl](https://github.com/qsimeon/julia_class_project/blob/main/figures/attention_python_julia.jpg?raw=true)
 
-![Transformer PyJl](https://github.com/qsimeon/julia_class_project/blob/main/transformer_python_julia.jpg?raw=true)
+![Transformer PyJl](https://github.com/qsimeon/julia_class_project/blob/main/figures/transformer_python_julia.jpg?raw=true)
 
 ---
 """
@@ -577,7 +577,7 @@ But recall that what we want is to make is a **Vision Transformer**. This requir
 * (1) patch embedding; and
 * (2) positional encoding
 
-![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_position.jpg?raw=true)
+![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/figures/patch_position.jpg?raw=true)
 
 We will explore these in detail next.
 
@@ -592,7 +592,7 @@ It turns out the patch embedding can be implemented by applying a strided convol
 
 Remember, **transformers** _operate on tokens_ i.e. the perform **transform**ations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
 
-![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_tokenize.jpg?raw=true)
+![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/figures/patch_tokenize.jpg?raw=true)
 
 ---
 """
@@ -771,7 +771,7 @@ end
 md"""
 You can embedded think of the embedded patches already as the tokens ``\mathbf{T}`` that will be fed into our ViT model. Recall graphically, ``\mathbf{T}`` is constructed from ``\mathbf{t}_1, \dots t_N`` like this
 
-![Token Matrix](https://github.com/qsimeon/julia_class_project/blob/main/token_matrix_shape.jpg?raw=true)
+![Token Matrix](https://github.com/qsimeon/julia_class_project/blob/main/figures/token_matrix_shape.jpg?raw=true)
 
 What we do next with **positional encoding** simply adds information about the position patch index, and so doesn't change the shape of the tokens.
 """
@@ -861,7 +861,7 @@ One reason why CNNs worked so well for image recognition is because they have an
 The vanilla Transformer considered two types of encodings:
 - (1) _Sinusoidal positional encoding_: Each dimension of the positional encoding corresponds to a sinusoid of different wavelengths in different dimensions. 
 
-![Sinusoidal Positional Encoding](https://github.com/qsimeon/julia_class_project/blob/main/sine_encoding.jpg?raw=True)
+![Sinusoidal Positional Encoding](https://github.com/qsimeon/julia_class_project/blob/main/figures/sine_encoding.jpg?raw=True)
 - (2) _Learned positional encoding_: As its name suggests, assignes each element in a sequence with a learned column vector which encodes its absolute position.
 ---
 """
@@ -870,7 +870,7 @@ The vanilla Transformer considered two types of encodings:
 md"""
 We will implement the latter (2) by implementing and `Embedding` module since it is straightforward and becuase embeddig layers are extremely useful and ubiquitous in deep learning code.
 
-![Embedding Table Explanation](https://github.com/qsimeon/julia_class_project/blob/main/how_embedding_works.jpg?raw=true)
+![Embedding Table Explanation](https://github.com/qsimeon/julia_class_project/blob/main/figures/how_embedding_works.jpg?raw=true)
 ---
 """
 
@@ -1091,7 +1091,7 @@ CIFAR-10 is an image classification dataset:
 - Each data sample is an RGB $32 \times 32$ real image. A raw loaded image $\in \mathbb{R}^{3 \times 32 \times 32}$.
 - Each image is associated with a label $\in \{0, 1, 2, \dots, 9\}$.
 
-![CIFAR10 Table](https://github.com/qsimeon/julia_class_project/blob/main/cifar10_table.jpg?raw=true)
+![CIFAR10 Table](https://github.com/qsimeon/julia_class_project/blob/main/figures/cifar10_table.jpg?raw=true)
 
 Our goal is to train a neural network classifier (with a *ViT* as the feature extractor "backbone") that takes such $3 \times 32 \times 32$ images and predicts a label.
 """
@@ -1235,7 +1235,7 @@ Here's an example of what we would expect:
 
 In this project, our Vision Transformer (ViT) model is designed to process the CIFAR-10 dataset. Below is an example attention map visualization for the [CLS] token after training, highlighting which regions of the image the model focuses on during classification.
 
-![Attention Map Images](https://github.com/qsimeon/julia_class_project/blob/main/trained_cifar_attn.png?raw=true)
+![Attention Map Images](https://github.com/qsimeon/julia_class_project/blob/main/figures/trained_cifar_attn.png?raw=true)
 
 """
 
@@ -3789,10 +3789,10 @@ version = "1.4.1+1"
 
 # ╔═╡ Cell order:
 # ╟─4cc97f4d-7a4c-487a-8684-1edd1bb963a5
-# ╟─ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
+# ╠═ddf6ac4d-df08-4e73-bc60-4925aa4b94c8
 # ╟─970f0e2b-459b-4baa-ae30-886c2bada7b4
 # ╠═e19d9f6b-8be8-4283-81a5-e30cdd91c654
-# ╟─191c435c-4094-4326-9e18-0ee8dc3058ab
+# ╠═191c435c-4094-4326-9e18-0ee8dc3058ab
 # ╟─2348f0c3-5fc1-424f-8a56-c00c52ca9a4f
 # ╟─afe50e6c-9e61-4246-a8ac-bebc83e2715c
 # ╠═ddc663b2-9de3-11ef-1d3a-9f172c4dda5f
@@ -3800,7 +3800,7 @@ version = "1.4.1+1"
 # ╟─5a498179-0be9-4e70-988f-14575d12a396
 # ╟─c3eaadcf-a06d-4469-ba9a-399043e72a9f
 # ╟─245ce308-8fc2-4b31-8aa6-d7c1d33b61ca
-# ╟─1c2692a1-e8a0-4926-ad42-3787671eeb51
+# ╠═1c2692a1-e8a0-4926-ad42-3787671eeb51
 # ╠═74eb85f0-ea48-48cd-b732-4d97f4883c85
 # ╟─c8d32f75-83a3-40d7-b136-4bf5966612a0
 # ╟─e9ce397a-b315-470d-9534-cdd1dad12a1b
@@ -3815,9 +3815,9 @@ version = "1.4.1+1"
 # ╟─da2f6c55-17c5-495c-8ba3-5b2dc50a17f1
 # ╟─fd2a796f-b683-4792-a976-b4071fda58a0
 # ╟─7eb8e4ec-80ae-4744-b21d-8b36885ff98c
-# ╟─90019339-1fdf-4541-b71b-a00b9ef7d904
-# ╟─db19fde5-434c-4030-9a61-0200ddca659f
-# ╟─a2bf29b4-174d-42e1-94b6-39822556349c
+# ╠═90019339-1fdf-4541-b71b-a00b9ef7d904
+# ╠═db19fde5-434c-4030-9a61-0200ddca659f
+# ╠═a2bf29b4-174d-42e1-94b6-39822556349c
 # ╟─ffeafe79-65b5-4c75-aaf1-e83bc8ca17cc
 # ╟─c3d2a61c-2caa-4f52-acab-8a0b89e5aac5
 # ╟─9e705315-d646-4373-854d-47a9f9d9076b
@@ -3828,11 +3828,11 @@ version = "1.4.1+1"
 # ╟─a2ff04a3-4118-47b8-b768-fc2a4986167b
 # ╟─9d6cd065-5f25-4943-b155-3602db474bff
 # ╟─02fb8ff3-647e-4d55-8c2b-a1d9066338ed
-# ╟─331f8b02-dafa-4d29-84bc-4238f227c9a8
+# ╠═331f8b02-dafa-4d29-84bc-4238f227c9a8
 # ╟─cc0a1d85-4cb0-4a02-8935-07b6050e0fb3
 # ╟─61c64d4b-b04f-4643-8949-db7b79e2293e
-# ╟─8e813069-1265-4469-980d-e1450d6ae173
-# ╟─a6fc3703-585d-453f-a30a-25d080ab053d
+# ╠═8e813069-1265-4469-980d-e1450d6ae173
+# ╠═a6fc3703-585d-453f-a30a-25d080ab053d
 # ╠═e6bff9ce-2cb0-4974-a2b5-d04243e8f0ba
 # ╟─a87e64c5-e8f4-4e61-8c66-3fe4c22e5c1c
 # ╟─8c355943-964f-4db0-a1ec-dd160b282583
@@ -3843,7 +3843,7 @@ version = "1.4.1+1"
 # ╟─e32c2cb0-2862-4f7a-9470-61ea5544202e
 # ╟─5dfc2447-fbd2-4337-a0d4-36dcf38139c0
 # ╟─2f5badaf-4342-42ec-8240-c5c642c1fa8f
-# ╟─33a7fb9e-838d-4b5b-9310-5d92719d7eaf
+# ╠═33a7fb9e-838d-4b5b-9310-5d92719d7eaf
 # ╟─58829bc1-d64c-4931-9589-86348b440885
 # ╠═b45c2b3b-301d-47e6-abb8-ea64c6ed7fc6
 # ╟─b27a7977-7f64-41ce-82fa-c6effd52523c
@@ -3853,7 +3853,7 @@ version = "1.4.1+1"
 # ╟─c207fa17-ce49-4a9f-b338-1613a60275cc
 # ╠═2a5da94c-dd22-450f-93b9-3e8298308488
 # ╟─b5669b02-7a62-4129-ad13-80a475c139cd
-# ╟─991500b0-5f55-4fa0-b796-88d8fa1ca568
+# ╠═991500b0-5f55-4fa0-b796-88d8fa1ca568
 # ╟─a2418e79-b2a3-4310-ba6e-7b0af50264ff
 # ╟─e6f6f744-7179-4d45-94fa-de0b3bc303bf
 # ╠═9cf11cbd-4e1e-4a01-be53-212b53a7bc25
