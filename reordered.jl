@@ -1,37 +1,46 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
+    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ 1b5dd214-b0fe-11ef-32cc-69fa6c2cd94d
-using LinearAlgebra, Random, Plots, PlutoUI, Images, MLDatasets, Enzyme, Statistics
-
-# ╔═╡ e763e709-9541-4c5b-bec7-1af2b2c4b204
-md"""
-### Our project is to implement a simple Vision Transformer in Julia!
-
-The Transformer architecture, introduced in the paper _Attention Is All You Need_ (Vaswani et al., 2017), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data) and it quickly replaced convolutional neural networks for image-based tasks. 
-"""
+using LinearAlgebra, Random, Plots, PlutoUI, Images, MLDatasets, Enzyme, Statistics,LaTeXStrings
 
 # ╔═╡ a44bbe2a-b4f1-4037-aa5f-768a60cba371
 md"""
-![ViT Model](https://github.com/qsimeon/julia_class_project/blob/e698587c2c2b7455404e6126c06f4ec04c463032/vit_arch.jpg?raw=true)
+# Implementing a Vision Transformer (ViT) in Julia!
+
+The Transformer architecture, introduced in the paper _Attention Is All You Need_ by [Vaswani et al. (2017)](https://arxiv.org/abs/1706.03762), is the most ubiquitous neural network architecture in modern machine learning. Its parallelism and scalability to large problems has seen it adopted in domains beyong those it was traditionally considered for (sequential data). 
+
+![ViT Model](https://github.com/qsimeon/julia_class_project/blob/main/transformer_architecture.jpg?raw=true)
+
+**NOTE:** We adapt/borrow a lot of material/concepts from
+[Torralba, A., Isola, P., & Freeman, W. T. (2021, December 1). _Foundations of Computer Vision_. MIT Press; The MIT Press, Massachusetts Institute of Technology.](https://mitpress.mit.edu/9780262048972/foundations-of-computer-vision/)
+
+---
 """
 
 # ╔═╡ fb7bd850-72bf-46a1-afc0-4ba21fc41109
 md"""
-Convolutional Neural Networks (CNNs) have limitations in that they only consider local patches. How can we improve upon this (without doing all to all, which is too expensive)?
+
+Until recently, the best performing models for image classification had been convolutional neural networks (CNNs) introduced in [LeCun et al. (1998)](https://ieeexplore.ieee.org/abstract/document/726791). Convolutional Neural Networks (CNNs) have limitations in that they only consider local patches. How can we improve upon this (without doing all to all, which is too expensive)?
+
+
+Nowadays, transformer architectures have been shown to have similar to better performance. One such model, called Vision Transformer by [Dosovitskiy et al. (2020)](https://arxiv.org/abs/2010.11929) splits up images into regularly sized patches. The patches are treated as a sequence and attention weights are learned as in a standard transformer model.
+
 """
 
 # ╔═╡ f9077067-595d-4afd-a23e-ec1bd0e07948
@@ -49,6 +58,18 @@ begin
 	train_dataset = CIFAR10(dir="cifar/", split=:train)
 	test_dataset = CIFAR10(dir="cifar/", split=:test)
 end
+
+# ╔═╡ 47a9f749-0de2-4dfb-a852-70f67503391c
+
+md"""
+One thing to keep in mind throughout this notebook is that Transformers operate on **tokens**. Conceptually, the transformer architecture may be thought of as a _token net_, which is abtraction or generalization of the more familiar _neural nets_.
+
+Token nets are just like neural nets, alternating between layers that mix nodes in linear combinations (e.g., fully connected linear layers, convolutional layers, etc.) and layers that apply a pointwise nonlinearity to each node (e.g., relus, per-token MLPs). 
+
+![Token Nets](https://github.com/qsimeon/julia_class_project/blob/main/token_net.jpg?raw=True)
+
+---
+"""
 
 # ╔═╡ 3206b242-5b4a-427e-9104-dec7d23d49cd
 md"""
@@ -102,6 +123,51 @@ md"""
 We will use the CIFAR dataset here
 """
 
+# ╔═╡ fe126069-716f-4987-a9d9-0203ca2cd217
+let
+	img1 = train_dataset.features[:,:,:,1]  # First RGB image
+    img1_rgb = colorview(RGB, permutedims(img1, (3, 2, 1)))
+    p1 = plot(img1_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[1]+1], axis=false)
+
+	img2 = train_dataset.features[:,:,:,2]  # First RGB image
+    img2_rgb = colorview(RGB, permutedims(img2, (3, 2, 1)))
+    p2 = plot(img2_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[2]+1], axis=false)
+
+	img3 = train_dataset.features[:,:,:,3]  # First RGB image
+    img3_rgb = colorview(RGB, permutedims(img3, (3, 2, 1)))
+    p3 = plot(img3_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[3]+1], axis=false)
+
+	img4 = train_dataset.features[:,:,:,4]  # First RGB image
+    img4_rgb = colorview(RGB, permutedims(img4, (3, 2, 1)))
+    p4 = plot(img4_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[4]+1], axis=false)
+
+	img5 = train_dataset.features[:,:,:,5]  # First RGB image
+    img5_rgb = colorview(RGB, permutedims(img5, (3, 2, 1)))
+    p5 = plot(img5_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[5]+1], axis=false)
+
+	img6 = train_dataset.features[:,:,:,6]  # First RGB image
+    img6_rgb = colorview(RGB, permutedims(img6, (3, 2, 1)))
+    p6 = plot(img6_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[6]+1], axis=false)
+
+	img7 = train_dataset.features[:,:,:,7]  # First RGB image
+    img7_rgb = colorview(RGB, permutedims(img7, (3, 2, 1)))
+    p7 = plot(img7_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[7]+1], axis=false)
+
+	img8 = train_dataset.features[:,:,:,8]  # First RGB image
+    img8_rgb = colorview(RGB, permutedims(img8, (3, 2, 1)))
+    p8 = plot(img8_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[8]+1], axis=false)
+
+	img9 = train_dataset.features[:,:,:,9]  # First RGB image
+    img9_rgb = colorview(RGB, permutedims(img9, (3, 2, 1)))
+    p9 = plot(img9_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[9]+1], axis=false)
+
+	img10 = train_dataset.features[:,:,:,10]  # First RGB image
+    img10_rgb = colorview(RGB, permutedims(img10, (3, 2, 1)))
+    p10 = plot(img10_rgb, title=train_dataset.metadata["class_names"][train_dataset.targets[10]+1], axis=false)
+	
+	plot(p1, p2, p3, p4, p5,p6,p7,p8,p9,p10, layout=(2, 5), size=(1500, 600))
+end
+
 # ╔═╡ c94f1530-0e36-4217-9c29-2a05e979803a
 @bind cifar_img_num Slider(1:1:1000, show_value=true)
 
@@ -130,31 +196,8 @@ visualize_patches(train_dataset.features[:,:,:,cifar_img_num], patch_size_slider
 
 # ╔═╡ 08e198b4-ee92-4acb-841f-62f8bd746ce5
 md"""
-Next, we will convert the patches to tokens (just low dimensional projections for now)
+These patches are the basis for our tokens (in practice using some sort of embedding discussed later)
 """
-
-# ╔═╡ ef7cc0cd-3195-4a81-8ba1-e376e5748593
-struct PatchEmbedLinear{T<:Real}
-	img_size::Int
-	patch_size::Int
-	nin::Int
-	nout::Int
-	num_patches::Int
-	W::Matrix{T} # Linear projection weights
-
-	function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
-		@assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
-		
-		num_patches = (img_size ÷ patch_size)^2
-		W = randn(T, nout, patch_size^2 * nin) # Linear projection matrix for each patch
-		return new{T}(img_size, patch_size, nin, nout, num_patches, W)
-	end
-
-	function(pe::PatchEmbedLinear{T})(patches::Array{T}) where {T<:Real}
-		return reshape(patches, size(patches,1), pe.patch_size^2 * size(patches,4)) * pe.W'
-	end
-end
-
 
 # ╔═╡ c3ee4ce5-088e-4979-9ec2-6a750419a786
 # Define function to extract patches
@@ -175,14 +218,10 @@ begin
 	img_size = 32
 	patch_size = patch_size_slider
 	n_channels = 3
-	dim = 100
-	patch_embed = PatchEmbedLinear{Float64}(img_size, patch_size, n_channels, dim)
+	dim = 10
 	
 	patches = extract_patches_num(train_dataset.features[:,:,:,cifar_img_num], patch_size)
-	
-	tokens = patch_embed(patches)
-	n_tokens = size(patches,1)
-	tokens
+
 end
 
 # ╔═╡ fe294ca2-de93-4542-b984-d15031f2545d
@@ -266,6 +305,58 @@ We then use a softmax function to scale the key/value multiplication output to b
 We may also optionally add a mask over the attention matrix to further refine it. 
 """
 
+# ╔═╡ 0f6efe7e-9f2d-445e-9425-3ed05ed6694a
+md"""
+To compute the query, key, and value for a set of input tokens, $\mathbf{T}_{\text {in }}$, we apply the same linear transformations to each token in the set, resulting in matrices $\mathbf{Q}_{\mathrm{in}}, \mathbf{K}_{\mathrm{in}} \in \mathbb{R}^{N \times m}$ and $\mathbf{V}_{\text {in }} \in \mathbb{R}^{N \times d}$, where each row is the query/key/value for each token:
+
+```math
+\begin{aligned}
+& \mathbf{Q}_{\text {in }}=\left[\begin{array}{c}
+\mathbf{q}_1^{\top} \\
+\vdots \\
+\mathbf{q}_N^{\top}
+\end{array}\right]=\left[\begin{array}{c}
+\left(\mathbf{W}_q \mathbf{t}_1\right)^{\top} \\
+\vdots \\
+\left(\mathbf{W}_q \mathbf{t}_N\right)^{\top}
+\end{array}\right]=\mathbf{T}_{\text {in }} \mathbf{W}_q^{\top} \quad \triangleleft \quad \text {query matrix} 
+\\
+& \mathbf{K}_{\text {in }}=\left[\begin{array}{c}
+\mathbf{k}_1^{\top} \\
+\vdots \\
+\mathbf{k}_N^{\top}
+\end{array}\right]=\left[\begin{array}{c}
+\left(\mathbf{W}_k \mathbf{t}_1\right)^{\top} \\
+\vdots \\
+\left(\mathbf{W}_{\mathrm{k}} \mathbf{t}_N\right)^{\top}
+\end{array}\right]=\mathbf{T}_{\text {in }} \mathbf{W}_k^{\top} \quad \triangleleft \quad \text { key matrix }
+\\
+& \mathbf{V}_{\text {in }}=\left[\begin{array}{c}
+\mathbf{v}_1^{\top} \\
+\vdots \\
+\mathbf{v}_N^{\top}
+\end{array}\right]=\left[\begin{array}{c}
+\left(\mathbf{W}_v \mathbf{t}_1\right)^{\top} \\
+\vdots \\
+\left(\mathbf{W}_v \mathbf{t}_N\right)^{\top}
+\end{array}\right]=\mathbf{T}_{\text {in }} \mathbf{W}_v^{\top} \quad \triangleleft \quad \text { value matrix }
+\end{aligned}
+```
+
+> Note that the query and key vectors must have the same dimensionality, $m$, because we take a dot product between them. Conversely, the value vectors must match the dimensionality of the token code vectors, $d$, because these are summed up to produce the new token code vectors.
+
+Finally, we have the attention equation:
+
+```math
+\begin{aligned}
+\mathbf{A} & = \text { softmax }\left(\frac{\mathbf{Q}_{\mathrm{in}} \mathbf{K}_{\mathrm{in}}^{\top}}{\sqrt{m}}\right) \quad \triangleleft \quad \text { attention matrix } \\
+\mathbf{T}_{\text {out }} & =\mathbf{A} \mathbf{V}_{\text {in }}
+\end{aligned}
+```
+
+where the softmax is taken within each row (i.e., over the vector of matches for each separate query vector.
+"""
+
 # ╔═╡ 523a1f35-0be0-4abd-980d-b2b385a972cc
 md"""
 ### Transformer Implementation 
@@ -280,6 +371,13 @@ Let’s start by defining key components of a Vision Transformer (ViT) model usi
 md"""
 #### Single attention head (single key/query/value matrix set)
 Pays attention to one thing
+"""
+
+# ╔═╡ fb0702c3-f19f-4c09-b60b-ee4163074d7e
+md"""
+In expanded detail, here are the full mechanics of a self-attention layer, which is the kind of attention layer used in transformers. 
+
+![Self-Attention Layer](https://github.com/qsimeon/julia_class_project/blob/main/self_attention_layer.jpg?raw=true)
 """
 
 # ╔═╡ 524801bd-c34a-419c-8942-3c9453e13227
@@ -340,66 +438,58 @@ function set_mean_val(patches, n_hidden, dim)
 	return out
 end
 
-# ╔═╡ 989508e8-fd93-4470-8caa-ecf5fc4c4d93
-# Test `AttentionHead` implementation
-let
-	dim, attn_dim = 3, 8
-	head = AttentionHead{Float64}(dim, attn_dim)
-	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
-	attn_output, alpha = head(X)
-	println("attention output shape: ", size(attn_output))
-	println("attention weight shape: ", size(alpha))
-	heatmap(
-	    alpha,
-	    aspect_ratio=:equal,
-		xlabel="Token Index",
-    	ylabel="Token Index",
-    	title="Attention Matrix",
-	    c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
-		
-	    clabel="Weight",                 # Label for the color bar
-	    colorbar=true,                   # Show the color bar
-	    grid=false,                      # Turn off the grid
-		# framestyle=:none,         # Removes the axis lines
-	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
-	    yticks=1:n_tokens,
-	)
-
-end
+# ╔═╡ cce862e1-622c-4274-b8d6-926ae872bd71
+md"""
+This is a visualization of the size of each matrix as the tokens are passed through the attention head. 
+"""
 
 # ╔═╡ 61479c5d-7a13-43cd-89d6-864abfd74f29
-# with mask
+# Showing causal attention with mask
 let
-	dim, attn_dim = 3, n_tokens
-	head = AttentionHead{Float64}(dim, attn_dim)
+	dim, attn_dim = 3, 8
+	n_tokens=10
+	args = (aspect_ratio=1, colorbar=false, grid=false, yticks=false, xticks=false, size=(650,650))
+	
 	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
+	W_Q = randn(n_tokens, dim)
+	W_K = randn(n_tokens, dim)
+	W_V = randn(dim, dim)
 
-	p1 = heatmap(X, title="Input", aspect_ratio=1, colorbar=false)
+	p1 = heatmap(X, title=string("in tokens ", L"T_{in}"); args..., ylabel=string("position, ", L"L"), xlabel=string("feature, ", L"d"))
+	p2 = heatmap(W_Q, title=L"W_q"; args...)
+	p3 = heatmap(W_K, title=L"W_k"; args...)
+	p4 = heatmap(W_V, title=L"W_v"; args...)
 
-	Q = randn(attn_dim, dim)
-	K = randn(attn_dim, dim)
-	V = randn(dim, dim)
-	p2 = heatmap(Q, title="Q", aspect_ratio=1, colorbar=false)
-	p3 = heatmap(K, title="K", aspect_ratio=1, colorbar=false)
-	p4 = heatmap(V, title="V", aspect_ratio=1, colorbar=false)
-	p5 = heatmap(X * transpose(Q), title="XQ", aspect_ratio=1, colorbar=false)
-	p6 = heatmap(X * transpose(K), title="XK", aspect_ratio=1, colorbar=false)
-	p7 = heatmap(X * transpose(V), title="XV", aspect_ratio=1, colorbar=false)
-	scores = Q * transpose(K) / sqrt(head.n_hidden)
-	p8 = heatmap(scores, title="attn", aspect_ratio=1, colorbar=false)
+	Q = X * transpose(W_Q)
+	K = X * transpose(W_K)
+	V = X * transpose(W_V)
+	
+	p5 = heatmap(Q, title=L"Q = T_{in} W_q^\intercal"; args...)
+	p6 = heatmap(K, title=L"K = T_{in} W_k^\intercal"; args...)
+	p7 = heatmap(V, title=L"V = T_{in} W_v^\intercal"; args...)
+	
+	scores = Q * transpose(K) / sqrt(attn_dim) # n_tokens x n_tokens
+	@assert size(scores) == (n_tokens, n_tokens)
+
+	p8 = heatmap(scores, title="scores"; args...)
 
 	mask = UpperTriangular(ones(n_tokens, n_tokens))
-	p85 = heatmap(mask, title="mask", aspect_ratio=1, colorbar=false)
-	scores_mask = scores .* mask .+ (1 .- mask) 
-	p9 = heatmap(scores_mask, title="masked attn", aspect_ratio=1, colorbar=false)
+	
+	p9 = heatmap(mask, title="causal mask"; args...)
+	
+	masked_scores = scores .* mask .+ (1 .- mask) 
+	
+	p10 = heatmap(masked_scores, title="mask scores"; args...)
 
-	alpha = softmax(scores_mask, dims=ndims(scores_mask)) 
-	p10 = heatmap(alpha, title="alpha", aspect_ratio=1, colorbar=false)
+	alpha = softmax(masked_scores, dims=ndims(masked_scores)) 
+	
+	p11 = heatmap(alpha, title=string("attention ", L"A"); args...)
 
-	attn_output = alpha * (X * transpose(V))
-	p11 = heatmap(attn_output, title="output", aspect_ratio=1, colorbar=false)
+	attn_output = alpha * V
+	
+	p12 = heatmap(attn_output, title=string("out tokens ", L"T_{out}"); args...)
 
-	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p85,p9,p10,p11]..., layout=(3,4))
+	plot!([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12]..., layout=(3,4))
 end
 
 # ╔═╡ 86f89130-8cc1-4669-8788-e1d423aa439c
@@ -438,54 +528,10 @@ struct MultiHeadedAttention{T<:Real}
     end
 end
 
-# ╔═╡ f4e9a6a9-6646-4db3-9d34-c8d6e3ff9cf9
-# Test `MultiHeadedAttention` implementation
-let
-	dim, attn_dim, num_heads = 3, 8, 5
-	heads = [AttentionHead{Float64}(dim, attn_dim) for _ in 1:num_heads]
-	W_msa = randn(Float64, dim, num_heads * dim)
-	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
-	
-	outputs, alphas = [], []
-	for head in heads
-		attn_out, alpha = head(X)
-		push!(outputs, attn_out)
-		push!(alphas, alpha)
-	end
-
-	concatenated = cat(outputs...; dims=2) # Shape: (N, num_heads*dim)
-	attn_alphas = cat(alphas...; dims=3) # Shape: (N, N, num_heads)
-	attn_alphas = permutedims(attn_alphas, (3, 1, 2)) # Shape: (num_heads, N, N)
-	attn_output = concatenated * transpose(W_msa) # Shape: (N, dim)
-
-	println("attention output shape: ", size(attn_output))
-	println("attention weights shape: ", size(attn_alphas))
-	# plot the attention mask from the last head
-	heatmap(
-	    attn_alphas[end,:,:],
-	    aspect_ratio=:equal,
-		xlabel="Token Index",
-    	ylabel="Token Index",
-    	title="Attention Matrix",
-	    c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
-	    clabel="Weight",                 # Label for the color bar
-	    colorbar=true,                   # Show the color bar
-	    grid=false,                      # Turn off the grid
-		# framestyle=:none,         # Removes the axis lines
-	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
-	    yticks=1:n_tokens,
-	)
-end
-
 # ╔═╡ 37831a4c-d244-4bbf-9841-0e52e345c013
 md"""
 #### Feed forward network 
 Step between attention layers
-"""
-
-# ╔═╡ e8ea67cb-e98a-44c4-bf29-aa9080a0eaba
-md"""
-![token net](https://github.com/qsimeon/julia_class_project/blob/a2a25d0ddf2da1dfa277a64da19890139f6744f6/token_net.jpg?raw=true)
 """
 
 # ╔═╡ 592cd05d-ab70-40e4-b872-f8827c207422
@@ -509,16 +555,6 @@ struct FeedForwardNetwork{T<:Real}
     end
 end
 
-
-# ╔═╡ a548682e-4847-40b9-86e7-ebdfd8e0b770
-# Test `FeedForwardNetwork` implementation
-let
-	dim, mlp_dim = 3, 8
-	ffn = FeedForwardNetwork{Float64}(dim, mlp_dim)
-	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
-	ffn_output = ffn(X)
-	println("feedforward output shape: ", size(ffn_output))
-end
 
 # ╔═╡ f9e99e8c-906e-4c00-8a38-f6d159f8bf6f
 md"""
@@ -611,6 +647,220 @@ md"""
 Let's test the `AttentionResidual` and `Transformer` structs to confirm that they work as expected with the previously implemented components.
 """
 
+# ╔═╡ b96638db-c20c-4906-a3ac-23a9377b962f
+md"""
+#### Our modules so far build up the Transfomer
+
+- **AttentionHead**: Implements a single attention head, creating query, key, and value projections, computing the attention scores, and applying a softmax.
+- **MultiHeadedAttention**: Combines multiple `AttentionHead`s, concatenates their outputs, and applies a final linear transformation.
+- **FeedForwardNetwork**: A simple feed-forward network with two linear layers and a ReLU activation in between.
+- **AttentionResidual**: Combines multi-head attention and feed-forward network layers with residual connections.
+- **Transformer**: Stacks multiple `AttentionResidual` layers to form the complete Transformer encoder.
+
+---
+
+We've set up a basic structure of a Transformer using callable structs, parametric types, and matrix operations. 
+
+"""
+
+# ╔═╡ 2abc6773-7596-47a9-ae2f-aa3f1b690d49
+md"""
+Using callable structs, parametric types, and matrix operations, we set up the basic components and combined them to create a Transformer module . 
+
+Let's view our Julia callable struct implemenations of the `AttentionHead` and `Transformer` modules side-by-side with a bare-bones implementation in PyTorch.
+
+__Show side-by-side comparison:__
+
+![AttentionHead PyJl](https://github.com/qsimeon/julia_class_project/blob/main/attention_python_julia.jpg?raw=true)
+
+![Transformer PyJl](https://github.com/qsimeon/julia_class_project/blob/main/transformer_python_julia.jpg?raw=true)
+
+---
+"""
+
+# ╔═╡ 03798c3d-0c59-4d77-8924-83ac3d631f54
+md"""
+#### Vision transformer
+
+There are a few more steps to making the vision transformer. This requires some additional layers for image processing. In addition to the patch embedding discussed above, we need to add positional encoding so the transformer knows where in the image a given patch is.
+
+![Patch Embed Image](https://github.com/qsimeon/julia_class_project/blob/main/patch_position.jpg?raw=true)
+
+We will explore these in detail next.
+
+---
+
+"""
+
+# ╔═╡ 13bb7a90-1187-40cf-915f-f93bcf4e5073
+md"""
+#### Patch Embedding
+
+It turns out the patch embedding can be implemented by applying a strided convolution. However, we will take the more direct and visualizable approach of chopping up an image into patches and linearly projecting the vector that is the flattened patch to the desired dimensionality. 
+
+Remember Transformers operate on tokens i.e. transformations of tokens. What we are doing here is essentially the first step of *tokenizing* our image data.
+
+![Patch Embed](https://github.com/qsimeon/julia_class_project/blob/main/patch_tokenize.jpg?raw=true)
+
+---
+"""
+
+# ╔═╡ 17a3e7d1-bb81-4623-8a0f-0c21ceb201eb
+# struct PatchEmbedLinear{T<:Real}
+# 	img_size::Int
+# 	patch_size::Int
+# 	nin::Int
+# 	nout::Int
+# 	num_patches::Int
+# 	W::Matrix{T} # Linear projection weights
+
+# 	function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
+# 		@assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
+		
+# 		num_patches = (img_size ÷ patch_size)^2
+# 		W = randn(T, nout, patch_size^2 * nin) # Linear projection matrix for each patch
+# 		return new{T}(img_size, patch_size, nin, nout, num_patches, W)
+# 	end
+
+# 	function(pe::PatchEmbedLinear{T})(patches::Array{T}) where {T<:Real}
+# 		return reshape(patches, size(patches,1), pe.patch_size^2 * size(patches,4)) * pe.W'
+# 	end
+# end
+
+
+# ╔═╡ 6ed27991-653f-432f-8af1-b4ef5b1b63e7
+### 7. PatchEmbedLinear 
+struct PatchEmbedLinear{T<:Real}
+    img_size::Int
+    patch_size::Int
+    nin::Int  # Number of input channels (e.g., RGB → nin = 3)
+    nout::Int # Desired output dimensionality for each patch
+    num_patches::Int
+    W::Vector{Matrix{T}} # Linear projection weights, one for each channel
+
+    function PatchEmbedLinear{T}(img_size::Int, patch_size::Int, nin::Int, nout::Int) where T<:Real
+        @assert img_size % patch_size == 0 "img_size must be divisible by patch_size"
+        num_patches = (img_size ÷ patch_size)^2
+        # Create a distinct weight matrix for each channel
+        W = [randn(T, nout, patch_size^2) for _ in 1:nin]
+        return new{T}(img_size, patch_size, nin, nout, num_patches, W)
+    end
+
+    function (embed::PatchEmbedLinear{T})(image::Array{T}) where T<:Real
+        # Ensure image size matches expected dimensions
+        img_size = size(image, 2)
+        @assert img_size == embed.img_size "Image size does not match module configuration"
+
+        # Split the RGB image into three separate channel matrices
+        channels = channelview(image)  # Shape: (3, 256, 256)
+        @assert size(channels, 1) == embed.nin "Number of image channels does not match nin"
+
+        # Extract patches and project for each channel
+        projected_channels = []
+        for c in 1:embed.nin
+            # Extract the channel matrix (2D slice)
+            channel_matrix = Matrix{T}(channels[c, :, :])  # Shape: (256, 256)
+            # Extract patches
+            patches = extract_patches(channel_matrix, embed.patch_size)
+            # Flatten patches and project
+            patch_matrix = hcat([vec(patch) for patch in patches]...)'  # Shape: (num_patches, patch_size^2)
+            projected = patch_matrix * transpose(embed.W[c])  # Shape: (num_patches, nout)
+            push!(projected_channels, projected)
+        end
+
+        # Sum the projected embeddings across channels
+        projected_patches = reduce(+, projected_channels)  # Shape: (num_patches, nout)
+
+        return projected_patches
+    end
+end
+
+
+# ╔═╡ 52ccc748-9fea-40a5-a47f-f2f42d241af1
+begin
+	patch_embed = PatchEmbedLinear{Float32}(img_size, patch_size, n_channels, dim)
+	
+	tokens = patch_embed(permutedims(train_dataset.features[:,:,:,cifar_img_num],(3,1,2)))
+	n_tokens = size(patches,1)
+	tokens
+end
+
+# ╔═╡ 989508e8-fd93-4470-8caa-ecf5fc4c4d93
+# Test `AttentionHead` implementation
+let
+	dim, attn_dim = 3, 8
+	head = AttentionHead{Float64}(dim, attn_dim)
+	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
+	attn_output, alpha = head(X)
+	println("attention output shape: ", size(attn_output))
+	println("attention weight shape: ", size(alpha))
+	heatmap(
+	    alpha,
+	    aspect_ratio=:equal,
+		xlabel="Token Index",
+    	ylabel="Token Index",
+    	title="Attention Matrix",
+	    c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
+		
+	    clabel="Weight",                 # Label for the color bar
+	    colorbar=true,                   # Show the color bar
+	    grid=false,                      # Turn off the grid
+		# framestyle=:none,         # Removes the axis lines
+	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
+	    yticks=1:n_tokens,
+	)
+
+end
+
+# ╔═╡ f4e9a6a9-6646-4db3-9d34-c8d6e3ff9cf9
+# Test `MultiHeadedAttention` implementation
+let
+	dim, attn_dim, num_heads = 3, 8, 5
+	heads = [AttentionHead{Float64}(dim, attn_dim) for _ in 1:num_heads]
+	W_msa = randn(Float64, dim, num_heads * dim)
+	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
+	
+	outputs, alphas = [], []
+	for head in heads
+		attn_out, alpha = head(X)
+		push!(outputs, attn_out)
+		push!(alphas, alpha)
+	end
+
+	concatenated = cat(outputs...; dims=2) # Shape: (N, num_heads*dim)
+	attn_alphas = cat(alphas...; dims=3) # Shape: (N, N, num_heads)
+	attn_alphas = permutedims(attn_alphas, (3, 1, 2)) # Shape: (num_heads, N, N)
+	attn_output = concatenated * transpose(W_msa) # Shape: (N, dim)
+
+	println("attention output shape: ", size(attn_output))
+	println("attention weights shape: ", size(attn_alphas))
+	# plot the attention mask from the last head
+	heatmap(
+	    attn_alphas[end,:,:],
+	    aspect_ratio=:equal,
+		xlabel="Token Index",
+    	ylabel="Token Index",
+    	title="Attention Matrix",
+	    c=:plasma,                      # Choose a colormap, e.g., :viridis or :plasma
+	    clabel="Weight",                 # Label for the color bar
+	    colorbar=true,                   # Show the color bar
+	    grid=false,                      # Turn off the grid
+		# framestyle=:none,         # Removes the axis lines
+	    xticks=1:n_tokens,  # Ensures ticks are at each integer index
+	    yticks=1:n_tokens,
+	)
+end
+
+# ╔═╡ a548682e-4847-40b9-86e7-ebdfd8e0b770
+# Test `FeedForwardNetwork` implementation
+let
+	dim, mlp_dim = 3, 8
+	ffn = FeedForwardNetwork{Float64}(dim, mlp_dim)
+	X = randn(Float64, n_tokens, dim)  # example 3-D input of n_tokens
+	ffn_output = ffn(X)
+	println("feedforward output shape: ", size(ffn_output))
+end
+
 # ╔═╡ 38c40fd7-1b40-437b-8ac7-3b27e779798b
 # Test `AttentionResidual` implementation
 let
@@ -633,30 +883,57 @@ let
 	println("Collected attention weights shape: ", size(collected_alphas[1]), " for ", num_layers, " layers")
 end
 
-# ╔═╡ b96638db-c20c-4906-a3ac-23a9377b962f
-md"""
-#### Our modules so far build up the Transfomer
+# ╔═╡ f4f586b8-38ec-4337-96e2-5ed481fe6b4a
+function visualize_patch_embedding(image::Array{Float32}, patch_size::Int, embedded_patches::Matrix{Float32})
+    # Extract patches for visualization
+    patches = extract_patches(image, patch_size)
+    
+    # Calculate grid dimensions for patches
+    n_patches = length(patches)
+    grid_dim = div(size(image, 1), patch_size)  # Grid dimensions (e.g., 16x16 for 256x256 with patch_size=16)
+    
+    # Start with the original image
+    p1 = plot(image, title="Input Image", size=(800, 800), color=:grays, axis=false)
+    
+    # Overlay transparent patches
+    for i in 0:grid_dim-1
+        for j in 0:grid_dim-1
+            # Draw rectangles for patches
+            rectangle = Shape([j*patch_size, (j+1)*patch_size, (j+1)*patch_size, j*patch_size],
+                              [i*patch_size, i*patch_size, (i+1)*patch_size, (i+1)*patch_size])
+            plot!(rectangle, lw=1.5, linealpha=0.7, fillalpha=0.0, color=:red, legend=false)
+        end
+    end
+    
+    # Visualize embeddings as a heatmap
+    p2 = heatmap(embedded_patches, title="Patch Embeddings", xlabel="Embedding Dimension",
+                 ylabel="Patch Index", color=:viridis, size=(800, 800))
+    
+    # Combine the two plots
+    plot(p1, p2, layout=(1, 2), size=(1200, 550))
+end
 
-- **AttentionHead**: Implements a single attention head, creating query, key, and value projections, computing the attention scores, and applying a softmax.
-- **MultiHeadedAttention**: Combines multiple `AttentionHead`s, concatenates their outputs, and applies a final linear transformation.
-- **FeedForwardNetwork**: A simple feed-forward network with two linear layers and a ReLU activation in between.
-- **AttentionResidual**: Combines multi-head attention and feed-forward network layers with residual connections.
-- **Transformer**: Stacks multiple `AttentionResidual` layers to form the complete Transformer encoder.
 
----
+# ╔═╡ 72cdb082-f88a-4ef6-88b5-3e3df4d27178
+# Example Usage
+let
+	embed_img = permutedims(train_dataset.features[:,:,:,cifar_img_num],(3,1,2))
+    img_size = size(embed_img, 3)  # Image size (assumes square image)
+    nin = size(channelview(embed_img), 1)  # Number of input channels (RGB)
+    nout = 64  # Desired embedding dimension
+    
+    # Initialize PatchEmbedLinear
+    patch_embed = PatchEmbedLinear{Float32}(img_size, patch_size, nin, nout)
+    
+    # Apply PatchEmbedLinear to the image
+    embedded_patches = patch_embed(embed_img)
+    
+    # Visualize the process
+    visualize_patch_embedding(train_dataset.features[:,:,:,cifar_img_num], patch_size, embedded_patches)
+end
 
-We've set up a basic structure of a Transformer using callable structs, parametric types, and matrix operations. 
+# ╔═╡ 7e13b1e6-467d-42e7-a20c-24b83b1576c0
 
-"""
-
-# ╔═╡ 03798c3d-0c59-4d77-8924-83ac3d631f54
-md"""
-#### Vision transformer
-
-There are a few more steps to making the vision transformer. This requires some additional layers for image processing. In addition to the patch embedding discussed above, we need to add positional encoding so the transformer knows where in the image a given patch is.
-
-
-"""
 
 # ╔═╡ a1d33ada-1362-4d53-9488-bded154ac73a
 struct Embedding{T<:Real}
@@ -794,6 +1071,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MLDatasets = "eb30cadb-4394-5ae3-aed4-317e484a6458"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -804,18 +1082,20 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [compat]
 Enzyme = "~0.13.16"
 Images = "~0.26.1"
+LaTeXStrings = "~1.4.0"
 MLDatasets = "~0.7.18"
 Plots = "~1.40.9"
 PlutoUI = "~0.7.60"
+Statistics = "~1.11.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.7"
+julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "424d04eba996414595b07375b15925a0ac925588"
+project_hash = "eb471d64b5814a9010926b10d9154551a49cbfbb"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -870,13 +1150,13 @@ weakdeps = ["StaticArrays"]
     AdaptStaticArraysExt = "StaticArrays"
 
 [[deps.ArgCheck]]
-git-tree-sha1 = "680b3b8759bd4c54052ada14e52355ab69e07876"
+git-tree-sha1 = "a3a402a35a2f7e0b87828ccabbd5ebfbebe356b4"
 uuid = "dce04be8-c92d-5529-be00-80e4d2c0e197"
-version = "2.4.0"
+version = "2.3.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
-version = "1.1.1"
+version = "1.1.2"
 
 [[deps.ArnoldiMethod]]
 deps = ["LinearAlgebra", "Random", "StaticArrays"]
@@ -918,34 +1198,19 @@ version = "7.17.1"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+version = "1.11.0"
 
 [[deps.Atomix]]
 deps = ["UnsafeAtomics"]
-git-tree-sha1 = "14e254ef74e44cd6ed27fbb751d4e1f9bbf085cc"
+git-tree-sha1 = "c06a868224ecba914baa6942988e2f2aade419be"
 uuid = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
-version = "1.0.0"
-
-    [deps.Atomix.extensions]
-    AtomixCUDAExt = "CUDA"
-    AtomixMetalExt = "Metal"
-    AtomixoneAPIExt = "oneAPI"
-
-    [deps.Atomix.weakdeps]
-    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
-    oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
+version = "0.1.0"
 
 [[deps.AtomsBase]]
-deps = ["LinearAlgebra", "PeriodicTable", "Preferences", "Printf", "Requires", "StaticArrays", "Unitful", "UnitfulAtomic"]
-git-tree-sha1 = "5a664c2cf30933f1e724e7b591c2ac117380b28f"
+deps = ["LinearAlgebra", "PeriodicTable", "Printf", "Requires", "StaticArrays", "Unitful", "UnitfulAtomic"]
+git-tree-sha1 = "995c2b6b17840cd87b722ce9c6cdd72f47bab545"
 uuid = "a963bdd2-2df7-4f54-a1ee-49d51e6be12a"
-version = "0.5.0"
-
-    [deps.AtomsBase.extensions]
-    AtomsBaseAtomsViewExt = "AtomsView"
-
-    [deps.AtomsBase.weakdeps]
-    AtomsView = "ee286e10-dd2d-4ff2-afcb-0a3cd50c8041"
+version = "0.3.5"
 
 [[deps.AxisAlgorithms]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
@@ -989,6 +1254,7 @@ version = "0.4.3"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+version = "1.11.0"
 
 [[deps.Baselet]]
 git-tree-sha1 = "aebf55e6d7795e02ca500a689d326ac979aaf89e"
@@ -1057,10 +1323,10 @@ weakdeps = ["SparseArrays"]
     ChainRulesCoreSparseArraysExt = "SparseArrays"
 
 [[deps.Chemfiles]]
-deps = ["AtomsBase", "Chemfiles_jll", "DocStringExtensions", "Unitful", "UnitfulAtomic"]
-git-tree-sha1 = "b7b6140d72877345f03ce09d2cd97c0115f43c52"
+deps = ["AtomsBase", "Chemfiles_jll", "DocStringExtensions", "PeriodicTable", "Unitful", "UnitfulAtomic"]
+git-tree-sha1 = "82fe5e341c793cb51149d993307da9543824b206"
 uuid = "46823bd8-5fb3-5f92-9aa0-96921f3dd015"
-version = "0.10.42"
+version = "0.10.41"
 
 [[deps.Chemfiles_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1225,6 +1491,7 @@ version = "1.0.0"
 [[deps.Dates]]
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+version = "1.11.0"
 
 [[deps.Dbus_jll]]
 deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl"]
@@ -1257,6 +1524,7 @@ weakdeps = ["ChainRulesCore", "SparseArrays"]
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+version = "1.11.0"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -1271,9 +1539,9 @@ version = "1.6.0"
 
 [[deps.Enzyme]]
 deps = ["CEnum", "EnzymeCore", "Enzyme_jll", "GPUCompiler", "LLVM", "Libdl", "LinearAlgebra", "ObjectFile", "Preferences", "Printf", "Random", "SparseArrays"]
-git-tree-sha1 = "39776b460f3bd686fd4e0bb16a48488ffe1ce426"
+git-tree-sha1 = "d6368b8438a9812e2ae19ffed95de73dd9bfbc1b"
 uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-version = "0.13.17"
+version = "0.13.16"
 weakdeps = ["BFloat16s", "ChainRulesCore", "LogExpFunctions", "SpecialFunctions", "StaticArrays"]
 
     [deps.Enzyme.extensions]
@@ -1284,9 +1552,9 @@ weakdeps = ["BFloat16s", "ChainRulesCore", "LogExpFunctions", "SpecialFunctions"
     EnzymeStaticArraysExt = "StaticArrays"
 
 [[deps.EnzymeCore]]
-git-tree-sha1 = "2c366bfe21936e8f44b607eb86a1f4c110f0d841"
+git-tree-sha1 = "e333ffd38ecffcf5c6c2dafd10788404ac46fb9f"
 uuid = "f151be2c-9106-41f4-ab19-57ee4f262869"
-version = "0.8.7"
+version = "0.8.6"
 weakdeps = ["Adapt"]
 
     [deps.EnzymeCore.extensions]
@@ -1294,9 +1562,9 @@ weakdeps = ["Adapt"]
 
 [[deps.Enzyme_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "c2db64f193205dc5d2d4e58a315edc2eb469a9f0"
+git-tree-sha1 = "f56cc86a351767fcb3bb2890b6e1a14d0ef323ab"
 uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
-version = "0.0.166+0"
+version = "0.0.165+0"
 
 [[deps.EpollShim_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1386,6 +1654,7 @@ weakdeps = ["Mmap", "Test"]
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
+version = "1.11.0"
 
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
@@ -1406,9 +1675,9 @@ version = "1.3.7"
 
 [[deps.FreeType2_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "786e968a8d2fb167f2e4880baba62e0e26bd8e4e"
+git-tree-sha1 = "5c1d8ae0efc6c2e7b1fc502cbe25def8f661b7bc"
 uuid = "d7e528f0-a631-5988-bf34-fe36492bcfd7"
-version = "2.13.3+1"
+version = "2.13.2+0"
 
 [[deps.FriBidi_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1419,6 +1688,7 @@ version = "1.0.14+0"
 [[deps.Future]]
 deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
+version = "1.11.0"
 
 [[deps.GLFW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "libdecor_jll", "xkbcommon_jll"]
@@ -1428,9 +1698,9 @@ version = "3.4.0+1"
 
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
-git-tree-sha1 = "83cf05ab16a73219e5f6bd1bdfa9848fa24ac627"
+git-tree-sha1 = "ec632f177c0d990e64d955ccc1b8c04c485a0950"
 uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
-version = "0.2.0"
+version = "0.1.6"
 
 [[deps.GPUCompiler]]
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "TimerOutputs", "UUIDs"]
@@ -1470,9 +1740,9 @@ version = "9.55.0+4"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "b36c7e110080ae48fdef61b0c31e6b17ada23b33"
+git-tree-sha1 = "674ff0db93fffcd11a3573986e550d66cd4fd71f"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.82.2+0"
+version = "2.80.5+0"
 
 [[deps.Glob]]
 git-tree-sha1 = "97285bbd5230dd766e9ef6749b80fc617126d496"
@@ -1487,9 +1757,9 @@ version = "1.1.3"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "01979f9b37367603e2848ea225918a3b3861b606"
+git-tree-sha1 = "344bf40dcab1073aca04aa0df4fb092f920e4011"
 uuid = "3b182d85-2403-5c21-9c21-1e1f0cc25472"
-version = "1.3.14+1"
+version = "1.3.14+0"
 
 [[deps.Graphs]]
 deps = ["ArnoldiMethod", "Compat", "DataStructures", "Distributed", "Inflate", "LinearAlgebra", "Random", "SharedArrays", "SimpleTraits", "SparseArrays", "Statistics"]
@@ -1521,10 +1791,10 @@ uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
 version = "1.14.2+1"
 
 [[deps.HTTP]]
-deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "PrecompileTools", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "ae350b8225575cc3ea385d4131c81594f86dfe4f"
+deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
+git-tree-sha1 = "1336e07ba2eb75614c99496501a8f4b233e9fafe"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.10.12"
+version = "1.10.10"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll"]
@@ -1730,6 +2000,7 @@ version = "2024.2.1+0"
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+version = "1.11.0"
 
 [[deps.InternedStrings]]
 deps = ["Random", "Test"]
@@ -1796,9 +2067,9 @@ version = "0.4.53"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
-git-tree-sha1 = "71b48d857e86bf7a1838c4736545699974ce79a2"
+git-tree-sha1 = "39d64b09147620f5ffbf6b2d3255be3c901bec63"
 uuid = "1019f520-868f-41f5-a6de-eb00f4b6a39c"
-version = "0.1.9"
+version = "0.1.8"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
@@ -1844,9 +2115,9 @@ version = "0.2.4"
 
 [[deps.KernelAbstractions]]
 deps = ["Adapt", "Atomix", "InteractiveUtils", "MacroTools", "PrecompileTools", "Requires", "StaticArrays", "UUIDs", "UnsafeAtomics", "UnsafeAtomicsLLVM"]
-git-tree-sha1 = "27044736be7c5727d35fc4318d7949dee33c37b4"
+git-tree-sha1 = "e73a077abc7fe798fe940deabe30ef6c66bdde52"
 uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-version = "0.9.30"
+version = "0.9.29"
 weakdeps = ["EnzymeCore", "LinearAlgebra", "SparseArrays"]
 
     [deps.KernelAbstractions.extensions]
@@ -1924,6 +2195,7 @@ version = "0.1.17"
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
 uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+version = "1.11.0"
 
 [[deps.LazyModules]]
 git-tree-sha1 = "a560dd966b386ac9ae60bdd3a3d3a326062d3c3e"
@@ -1938,16 +2210,17 @@ version = "0.6.4"
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "8.4.0+0"
+version = "8.6.0+0"
 
 [[deps.LibGit2]]
 deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
+version = "1.11.0"
 
 [[deps.LibGit2_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll"]
 uuid = "e37daf67-58a4-590a-8e99-b0245dd2ffc5"
-version = "1.6.4+0"
+version = "1.7.2+0"
 
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
@@ -1956,6 +2229,7 @@ version = "1.11.0+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+version = "1.11.0"
 
 [[deps.Libffi_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1970,10 +2244,10 @@ uuid = "d4300ac3-e22c-5743-9152-c294e39db1e4"
 version = "1.11.0+0"
 
 [[deps.Libglvnd_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll", "Xorg_libXext_jll"]
-git-tree-sha1 = "ff3b4b9d35de638936a525ecd36e86a8bb919d11"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll", "Xorg_libXext_jll"]
+git-tree-sha1 = "6f73d1dd803986947b2c750138528a999a6c7733"
 uuid = "7e76a0d4-f3c7-5321-8279-8d96eeed0f29"
-version = "1.7.0+0"
+version = "1.6.0+0"
 
 [[deps.Libgpg_error_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1989,9 +2263,9 @@ version = "1.17.0+1"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "84eef7acd508ee5b3e956a2ae51b05024181dee0"
+git-tree-sha1 = "0c4f9c4f1a50d8f35048fa0532dabbadf702f81e"
 uuid = "4b2f31a3-9ecc-558c-b454-b3730dcb73e9"
-version = "2.40.2+0"
+version = "2.40.1+0"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
@@ -2001,13 +2275,14 @@ version = "4.7.0+0"
 
 [[deps.Libuuid_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "edbf5309f9ddf1cab25afc344b1e8150b7c832f9"
+git-tree-sha1 = "5ee6203157c120d79034c748a2acba45b82b8807"
 uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
-version = "2.40.2+0"
+version = "2.40.1+0"
 
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+version = "1.11.0"
 
 [[deps.LittleCMS_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll"]
@@ -2033,6 +2308,7 @@ version = "0.3.28"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
+version = "1.11.0"
 
 [[deps.LoggingExtras]]
 deps = ["Dates", "Logging"]
@@ -2126,6 +2402,7 @@ version = "0.4.2"
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+version = "1.11.0"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "NetworkOptions", "Random", "Sockets"]
@@ -2136,7 +2413,7 @@ version = "1.1.9"
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.28.2+1"
+version = "2.28.6+0"
 
 [[deps.Measures]]
 git-tree-sha1 = "c13304c81eec1ed3af7fc20e75fb6b26092a1102"
@@ -2169,6 +2446,7 @@ version = "1.2.0"
 
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+version = "1.11.0"
 
 [[deps.MosaicViews]]
 deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
@@ -2178,13 +2456,13 @@ version = "0.3.4"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2023.1.10"
+version = "2023.12.12"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "1177f161cda2083543b9967d7ca2a3e24e721e13"
+git-tree-sha1 = "da09a1e112fd75f9af2a5229323f01b56ec96a4c"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.9.26"
+version = "0.9.24"
 
     [deps.NNlib.extensions]
     NNlibAMDGPUExt = "AMDGPU"
@@ -2260,7 +2538,7 @@ version = "1.3.5+1"
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.23+4"
+version = "0.3.27+1"
 
 [[deps.OpenEXR]]
 deps = ["Colors", "FileIO", "OpenEXR_jll"]
@@ -2287,9 +2565,9 @@ version = "0.8.1+2"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
-git-tree-sha1 = "2dace87e14256edb1dd0724ab7ba831c779b96bd"
+git-tree-sha1 = "bfce6d523861a6c562721b262c0d1aaeead2647f"
 uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
-version = "5.0.6+0"
+version = "5.0.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -2316,9 +2594,9 @@ uuid = "91d4177d-7536-5919-b921-800302f37372"
 version = "1.3.3+0"
 
 [[deps.OrderedCollections]]
-git-tree-sha1 = "12f1439c4f986bb868acda6ea33ebc78e19b95ad"
+git-tree-sha1 = "dfdf5519f235516220579f949664f1bf44e741c5"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.7.0"
+version = "1.6.3"
 
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -2385,9 +2663,13 @@ uuid = "30392449-352a-5448-841d-b1acce4e97dc"
 version = "0.43.4+0"
 
 [[deps.Pkg]]
-deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
+deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.10.0"
+version = "1.11.0"
+weakdeps = ["REPL"]
+
+    [deps.Pkg.extensions]
+    REPLExt = "REPL"
 
 [[deps.PkgVersion]]
 deps = ["Pkg"]
@@ -2489,6 +2771,7 @@ version = "2.4.0"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+version = "1.11.0"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
@@ -2533,12 +2816,14 @@ uuid = "94ee1d12-ae83-5a48-8b1c-48b8ff168ae0"
 version = "0.7.6"
 
 [[deps.REPL]]
-deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
+deps = ["InteractiveUtils", "Markdown", "Sockets", "StyledStrings", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
+version = "1.11.0"
 
 [[deps.Random]]
 deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+version = "1.11.0"
 
 [[deps.RangeArrays]]
 git-tree-sha1 = "b9039e93773ddcfc828f12aadf7115b4b4d225f5"
@@ -2641,6 +2926,7 @@ version = "1.4.7"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+version = "1.11.0"
 
 [[deps.Setfield]]
 deps = ["ConstructionBase", "Future", "MacroTools", "StaticArraysCore"]
@@ -2651,6 +2937,7 @@ version = "1.1.1"
 [[deps.SharedArrays]]
 deps = ["Distributed", "Mmap", "Random", "Serialization"]
 uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
+version = "1.11.0"
 
 [[deps.ShowCases]]
 git-tree-sha1 = "7f534ad62ab2bd48591bdeac81994ea8c445e4a5"
@@ -2688,6 +2975,7 @@ version = "0.1.3"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
+version = "1.11.0"
 
 [[deps.SortingAlgorithms]]
 deps = ["DataStructures"]
@@ -2698,7 +2986,7 @@ version = "1.2.1"
 [[deps.SparseArrays]]
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-version = "1.10.0"
+version = "1.11.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
@@ -2762,9 +3050,14 @@ uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 version = "1.4.3"
 
 [[deps.Statistics]]
-deps = ["LinearAlgebra", "SparseArrays"]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "ae3bb1eb3bba077cd276bc5cfc337cc65c3075c0"
 uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-version = "1.10.0"
+version = "1.11.1"
+weakdeps = ["SparseArrays"]
+
+    [deps.Statistics.extensions]
+    SparseArraysExt = ["SparseArrays"]
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
@@ -2813,10 +3106,14 @@ git-tree-sha1 = "159331b30e94d7b11379037feeb9b690950cace8"
 uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 version = "1.11.0"
 
+[[deps.StyledStrings]]
+uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+version = "1.11.0"
+
 [[deps.SuiteSparse_jll]]
 deps = ["Artifacts", "Libdl", "libblastrampoline_jll"]
 uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
-version = "7.2.1+1"
+version = "7.7.0+0"
 
 [[deps.TOML]]
 deps = ["Dates"]
@@ -2849,6 +3146,7 @@ version = "0.1.1"
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+version = "1.11.0"
 
 [[deps.ThreadingUtilities]]
 deps = ["ManualMemory"]
@@ -2914,6 +3212,7 @@ version = "1.5.1"
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+version = "1.11.0"
 
 [[deps.UnPack]]
 git-tree-sha1 = "387c1f73762231e86e0c9c5443ce3b4a0a9a0c2b"
@@ -2922,6 +3221,7 @@ version = "1.0.2"
 
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+version = "1.11.0"
 
 [[deps.UnicodeFun]]
 deps = ["REPL"]
@@ -2931,9 +3231,9 @@ version = "0.4.1"
 
 [[deps.Unitful]]
 deps = ["Dates", "LinearAlgebra", "Random"]
-git-tree-sha1 = "01915bfcd62be15329c9a07235447a89d588327c"
+git-tree-sha1 = "d95fe458f26209c66a187b1114df96fd70839efd"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "1.21.1"
+version = "1.21.0"
 weakdeps = ["ConstructionBase", "InverseFunctions"]
 
     [deps.Unitful.extensions]
@@ -2959,9 +3259,9 @@ version = "0.2.1"
 
 [[deps.UnsafeAtomicsLLVM]]
 deps = ["LLVM", "UnsafeAtomics"]
-git-tree-sha1 = "de4287a6569bcf3a8d6201d387991a8dda25c954"
+git-tree-sha1 = "2d17fabcd17e67d7625ce9c531fb9f40b7c42ce4"
 uuid = "d80eeb9a-aca5-4d75-85e5-170c8b632249"
-version = "0.2.2"
+version = "0.2.1"
 
 [[deps.Unzip]]
 git-tree-sha1 = "ca0969166a028236229f63514992fc073799bb78"
@@ -3017,9 +3317,9 @@ version = "2.13.5+0"
 
 [[deps.XSLT_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libgcrypt_jll", "Libgpg_error_jll", "Libiconv_jll", "XML2_jll", "Zlib_jll"]
-git-tree-sha1 = "7d1671acbe47ac88e981868a078bd6b4e27c5191"
+git-tree-sha1 = "a54ee957f4c86b526460a720dbc882fa5edcbefc"
 uuid = "aed1982a-8fda-507f-9586-7b0439959a61"
-version = "1.1.42+0"
+version = "1.1.41+0"
 
 [[deps.XZ_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3041,15 +3341,15 @@ version = "1.2.4+0"
 
 [[deps.Xorg_libX11_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xtrans_jll"]
-git-tree-sha1 = "9dafcee1d24c4f024e7edc92603cedba72118283"
+git-tree-sha1 = "afead5aba5aa507ad5a3bf01f58f82c8d1403495"
 uuid = "4f6342f7-b3d2-589e-9d20-edeb45f2b2bc"
-version = "1.8.6+1"
+version = "1.8.6+0"
 
 [[deps.Xorg_libXau_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "2b0e27d52ec9d8d483e2ca0b72b3cb1a8df5c27a"
+git-tree-sha1 = "6035850dcc70518ca32f012e46015b9beeda49d8"
 uuid = "0c0b7dd1-d40b-584c-a123-a41640f87eec"
-version = "1.0.11+1"
+version = "1.0.11+0"
 
 [[deps.Xorg_libXcursor_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libXfixes_jll", "Xorg_libXrender_jll"]
@@ -3059,15 +3359,15 @@ version = "1.2.0+4"
 
 [[deps.Xorg_libXdmcp_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "02054ee01980c90297412e4c809c8694d7323af3"
+git-tree-sha1 = "34d526d318358a859d7de23da945578e8e8727b7"
 uuid = "a3789734-cfe1-5b06-b2d0-1dd0d9d62d05"
-version = "1.1.4+1"
+version = "1.1.4+0"
 
 [[deps.Xorg_libXext_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
-git-tree-sha1 = "d7155fea91a4123ef59f42c4afb5ab3b4ca95058"
+git-tree-sha1 = "d2d1a5c49fae4ba39983f63de6afcbea47194e85"
 uuid = "1082639a-0dae-5f34-9b06-72781eeb8cb3"
-version = "1.3.6+1"
+version = "1.3.6+0"
 
 [[deps.Xorg_libXfixes_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_libX11_jll"]
@@ -3101,15 +3401,15 @@ version = "0.9.11+0"
 
 [[deps.Xorg_libpthread_stubs_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "fee57a273563e273f0f53275101cd41a8153517a"
+git-tree-sha1 = "8fdda4c692503d44d04a0603d9ac0982054635f9"
 uuid = "14d82f49-176c-5ed1-bb49-ad3f5cbd8c74"
-version = "0.1.1+1"
+version = "0.1.1+0"
 
 [[deps.Xorg_libxcb_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "XSLT_jll", "Xorg_libXau_jll", "Xorg_libXdmcp_jll", "Xorg_libpthread_stubs_jll"]
-git-tree-sha1 = "1a74296303b6524a0472a8cb12d3d87a78eb3612"
+git-tree-sha1 = "bcd466676fef0878338c61e655629fa7bbc69d8e"
 uuid = "c7cfdc94-dc32-55de-ac96-5a1b8d977c5b"
-version = "1.17.0+1"
+version = "1.17.0+0"
 
 [[deps.Xorg_libxkbfile_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
@@ -3167,9 +3467,9 @@ version = "2.39.0+0"
 
 [[deps.Xorg_xtrans_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "b9ead2d2bdb27330545eb14234a2e300da61232e"
+git-tree-sha1 = "e92a1a012a10506618f10b7047e478403a046c77"
 uuid = "c5fb5394-a638-5e4d-96e5-b29de1b5cf10"
-version = "1.5.0+1"
+version = "1.5.0+0"
 
 [[deps.ZipFile]]
 deps = ["Libdl", "Printf", "Zlib_jll"]
@@ -3196,15 +3496,15 @@ version = "3.2.9+0"
 
 [[deps.fzf_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "6e50f145003024df4f5cb96c7fce79466741d601"
+git-tree-sha1 = "936081b536ae4aa65415d869287d43ef3cb576b2"
 uuid = "214eeab7-80f7-51ab-84ad-2988db7cef09"
-version = "0.56.3+0"
+version = "0.53.0+0"
 
 [[deps.gperf_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "0ba42241cb6809f1a278d0bcb976e0483c3f1f2d"
+git-tree-sha1 = "3516a5630f741c9eecb3720b1ec9d8edc3ecc033"
 uuid = "1a1c6b14-54f6-533d-8383-74cd7377aa70"
-version = "3.1.1+1"
+version = "3.1.1+0"
 
 [[deps.libaec_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3280,7 +3580,7 @@ version = "1.1.6+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.52.0+1"
+version = "1.59.0+0"
 
 [[deps.oneTBB_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3314,44 +3614,46 @@ version = "1.4.1+1"
 
 # ╔═╡ Cell order:
 # ╠═1b5dd214-b0fe-11ef-32cc-69fa6c2cd94d
-# ╟─e763e709-9541-4c5b-bec7-1af2b2c4b204
 # ╟─a44bbe2a-b4f1-4037-aa5f-768a60cba371
-# ╟─fb7bd850-72bf-46a1-afc0-4ba21fc41109
+# ╠═fb7bd850-72bf-46a1-afc0-4ba21fc41109
 # ╟─f9077067-595d-4afd-a23e-ec1bd0e07948
 # ╟─0d404a09-41a0-42c0-a666-f1ecb73d3e88
 # ╠═ea1f0a1f-69a7-4352-8497-d52d2e19bd11
-# ╟─3206b242-5b4a-427e-9104-dec7d23d49cd
-# ╟─6edb2580-d09c-4d4f-bca4-6b6b9e4bd966
-# ╟─60564a33-cd99-4f92-9fd8-ce3ebd20b2c5
-# ╟─743c7675-b75e-42e6-be4c-6873a2d14888
+# ╟─47a9f749-0de2-4dfb-a852-70f67503391c
+# ╠═3206b242-5b4a-427e-9104-dec7d23d49cd
+# ╠═6edb2580-d09c-4d4f-bca4-6b6b9e4bd966
+# ╠═60564a33-cd99-4f92-9fd8-ce3ebd20b2c5
+# ╠═743c7675-b75e-42e6-be4c-6873a2d14888
+# ╠═fe126069-716f-4987-a9d9-0203ca2cd217
 # ╠═c94f1530-0e36-4217-9c29-2a05e979803a
-# ╟─bff69dc2-71f5-4dca-86a1-2187f028eff8
-# ╟─3a550293-f2be-46aa-9606-a27b5591f58a
+# ╠═bff69dc2-71f5-4dca-86a1-2187f028eff8
+# ╠═3a550293-f2be-46aa-9606-a27b5591f58a
 # ╠═2c625738-9e97-42a1-9a57-d35e3ec6b0c0
-# ╟─9d6ea285-9165-4113-903c-fc162651cb2d
+# ╠═9d6ea285-9165-4113-903c-fc162651cb2d
 # ╟─9f0d516c-c4c0-4f39-bb2e-cc9f0d203c60
 # ╟─08e198b4-ee92-4acb-841f-62f8bd746ce5
-# ╠═ef7cc0cd-3195-4a81-8ba1-e376e5748593
 # ╟─c3ee4ce5-088e-4979-9ec2-6a750419a786
 # ╠═9f8ba35b-358e-4803-b399-4a4a31f5a812
-# ╟─fe294ca2-de93-4542-b984-d15031f2545d
-# ╟─6876ba9c-add1-4121-bf96-6a1f9b86ce6c
+# ╠═fe294ca2-de93-4542-b984-d15031f2545d
+# ╠═6876ba9c-add1-4121-bf96-6a1f9b86ce6c
 # ╠═952dd5fe-8267-4475-80ff-8c3116c8c8d4
 # ╟─997752af-ba5a-44ff-991b-e2c1413ed3da
-# ╟─71f2073c-f7f7-41b3-87a1-2b7404093f46
+# ╠═71f2073c-f7f7-41b3-87a1-2b7404093f46
+# ╠═0f6efe7e-9f2d-445e-9425-3ed05ed6694a
 # ╟─523a1f35-0be0-4abd-980d-b2b385a972cc
 # ╟─65cd4dd7-67a5-4037-b3fa-73979cbf9869
 # ╟─8dac8ffa-7823-4c2e-8c35-1633fd9323f7
+# ╟─fb0702c3-f19f-4c09-b60b-ee4163074d7e
 # ╟─524801bd-c34a-419c-8942-3c9453e13227
 # ╠═86ae782d-aa7e-4990-b03e-6e3f48ce694f
 # ╟─e9f1d13e-c75e-4147-9c54-4c93e71b6c25
 # ╠═989508e8-fd93-4470-8caa-ecf5fc4c4d93
-# ╠═61479c5d-7a13-43cd-89d6-864abfd74f29
+# ╟─cce862e1-622c-4274-b8d6-926ae872bd71
+# ╟─61479c5d-7a13-43cd-89d6-864abfd74f29
 # ╟─86f89130-8cc1-4669-8788-e1d423aa439c
 # ╠═10dc52b3-2383-44f8-8bbf-67a968c4fff8
 # ╠═f4e9a6a9-6646-4db3-9d34-c8d6e3ff9cf9
 # ╟─37831a4c-d244-4bbf-9841-0e52e345c013
-# ╟─e8ea67cb-e98a-44c4-bf29-aa9080a0eaba
 # ╠═592cd05d-ab70-40e4-b872-f8827c207422
 # ╠═a548682e-4847-40b9-86e7-ebdfd8e0b770
 # ╟─f9e99e8c-906e-4c00-8a38-f6d159f8bf6f
@@ -3363,7 +3665,15 @@ version = "1.4.1+1"
 # ╠═38c40fd7-1b40-437b-8ac7-3b27e779798b
 # ╠═edea3648-8163-463f-bfa8-85de12f76928
 # ╟─b96638db-c20c-4906-a3ac-23a9377b962f
+# ╟─2abc6773-7596-47a9-ae2f-aa3f1b690d49
 # ╟─03798c3d-0c59-4d77-8924-83ac3d631f54
+# ╟─13bb7a90-1187-40cf-915f-f93bcf4e5073
+# ╠═17a3e7d1-bb81-4623-8a0f-0c21ceb201eb
+# ╠═6ed27991-653f-432f-8af1-b4ef5b1b63e7
+# ╠═52ccc748-9fea-40a5-a47f-f2f42d241af1
+# ╠═f4f586b8-38ec-4337-96e2-5ed481fe6b4a
+# ╠═72cdb082-f88a-4ef6-88b5-3e3df4d27178
+# ╠═7e13b1e6-467d-42e7-a20c-24b83b1576c0
 # ╠═a1d33ada-1362-4d53-9488-bded154ac73a
 # ╠═b5f76e8f-df39-4344-9f4a-ff20e4997381
 # ╠═ba99bfe7-bc11-4ccc-bd59-e6bc787b3648
